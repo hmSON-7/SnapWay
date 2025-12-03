@@ -41,7 +41,7 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<!-- 2. Security (JWT 인증) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -52,7 +52,7 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<!-- 3. Database (MySQL & MyBatis) -->
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -69,14 +69,15 @@
 			<artifactId>mybatis-spring-boot-starter-test</artifactId>
 			<version>3.0.5</version>
 		</dependency>
-		
+
 		<!-- 4. Lombok -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
+			<version>1.18.36</version>
 			<optional>true</optional>
 		</dependency>
-		
+
 		<!-- 5. Developer Tools (Optional) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -84,14 +85,14 @@
 			<scope>runtime</scope>
 			<optional>true</optional>
 		</dependency>
-		
+
 		<!-- 7. Metadata Extractor (사진 EXIF 분석용) -->
 		<dependency>
 			<groupId>com.drewnoakes</groupId>
 			<artifactId>metadata-extractor</artifactId>
 			<version>2.19.0</version>
 		</dependency>
-		
+
 		<!-- 8. WebFlux (Gemini API 호출용 WebClient 사용) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -109,6 +110,7 @@
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
+							<version>1.18.36</version>
 						</path>
 					</annotationProcessorPaths>
 				</configuration>
@@ -121,6 +123,8 @@
 						<exclude>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
+							<version>1.18.36</version>
+
 						</exclude>
 					</excludes>
 				</configuration>
