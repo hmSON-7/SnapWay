@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class CustomUserDetails implements UserDetails {
 
     private final Member member;
+    
 
     // 권한 목록 반환 (ROLE_USER, ROLE_ADMIN 등)
     @Override
