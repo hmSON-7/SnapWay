@@ -1,4 +1,4 @@
-package com.snapway.member.model.service;
+package com.snapway.model.service;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -7,10 +7,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.snapway.member.model.mapper.MemberMapper;
+import com.snapway.model.mapper.MemberMapper;
 import com.snapway.security.CustomUserDetails;
-import com.snapway.member.model.dto.Member;
-import com.snapway.member.model.dto.Role;
+import com.snapway.model.dto.Member;
+import com.snapway.model.dto.Role;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

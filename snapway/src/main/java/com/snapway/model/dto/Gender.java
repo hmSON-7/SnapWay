@@ -1,4 +1,4 @@
-package com.snapway.member.model.dto;
+package com.snapway.model.dto;
 
 public enum Gender {
     MALE, FEMALE

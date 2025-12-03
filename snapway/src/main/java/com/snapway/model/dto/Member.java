@@ -1,4 +1,4 @@
-package com.snapway.member.model.dto;
+package com.snapway.model.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

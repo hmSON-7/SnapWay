@@ -7,9 +7,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.snapway.member.model.mapper.MemberMapper;
+import com.snapway.model.mapper.MemberMapper;
 import com.snapway.security.CustomUserDetails;
-import com.snapway.member.model.dto.Member;
+import com.snapway.model.dto.Member;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
