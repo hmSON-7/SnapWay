@@ -8,7 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.snapway.member.model.dto.Member;
+import com.snapway.model.dto.Member;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

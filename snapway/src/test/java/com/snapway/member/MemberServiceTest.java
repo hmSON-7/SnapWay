@@ -17,9 +17,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.snapway.security.CustomUserDetails;
-import com.snapway.member.model.dto.Member;
-import com.snapway.member.model.mapper.MemberMapper;
-import com.snapway.member.model.service.MemberServiceImpl;
+import com.snapway.model.dto.Member;
+import com.snapway.model.mapper.MemberMapper;
+import com.snapway.model.service.MemberServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {

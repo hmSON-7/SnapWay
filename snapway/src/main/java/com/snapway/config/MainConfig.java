@@ -1,7 +1,10 @@
 package com.snapway.config;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+
+import com.snapway.model.mapper.MemberMapper;
 
 @Configuration
 /* 
@@ -9,6 +12,7 @@ import org.springframework.context.annotation.PropertySource;
  * 경로 예시 ---> C:\Users\yohan\second.properties
  */
 //@PropertySource("")
+@MapperScan(basePackageClasses = {MemberMapper.class})
 public class MainConfig {
 
 }

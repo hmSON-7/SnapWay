@@ -1,4 +1,4 @@
-package com.snapway.member.model.dto;
+package com.snapway.model.dto;
 
 import lombok.Getter;
 

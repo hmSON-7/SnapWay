@@ -1,7 +1,7 @@
-package com.snapway.member.model.mapper;
+package com.snapway.model.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
-import com.snapway.member.model.dto.Member;
+import com.snapway.model.dto.Member;
 
 import java.sql.SQLException;
 

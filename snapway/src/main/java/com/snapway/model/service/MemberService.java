@@ -1,6 +1,6 @@
-package com.snapway.member.model.service;
+package com.snapway.model.service;
 
-import com.snapway.member.model.dto.Member;
+import com.snapway.model.dto.Member;
 
 public interface MemberService {
     

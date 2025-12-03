@@ -23,9 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.snapway.security.SecurityConfig;
-import com.snapway.member.model.service.MemberService;
-import com.snapway.member.controller.MemberController;
-import com.snapway.member.model.dto.Member;
+import com.snapway.model.service.MemberService;
+import com.snapway.controller.MemberController;
+import com.snapway.model.dto.Member;
 
 @WebMvcTest(MemberController.class)
 @Import(SecurityConfig.class) // Security 설정 적용하여 403 에러 방지

@@ -1,4 +1,4 @@
-package com.snapway.member.controller;
+package com.snapway.controller;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.snapway.member.model.service.MemberService;
-import com.snapway.member.model.dto.Member;
+import com.snapway.model.service.MemberService;
+import com.snapway.model.dto.Member;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
