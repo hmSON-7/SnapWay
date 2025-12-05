@@ -157,23 +157,38 @@ const onSubmit = async () => {
 
         const res = await registMember(member)
 
-        if (res.data.message === 'success') {
+        // 2xx 이면서 서버에서 success라고 내려온 경우만 성공 처리
+        if (res.status >= 200 && res.status < 300 && res.data.message === 'success') {
             successMessage.value = '회원가입이 완료되었습니다. 이제 로그인해 주세요.'
             resetForm()
+
             setTimeout(() => {
-                showLoginModal.value = true    // 회원가입 성공 후 바로 로그인 모달 열고 싶다면
-                // router.push({ name: 'login' })  // 대신 로그인 페이지로 보내고 싶으면 이 줄 사용
+                showLoginModal.value = true
+                // 또는 router.push({ name: 'login' })
             }, 800)
         } else {
-            error.value = '회원가입에 실패했습니다. 입력 정보를 다시 확인해 주세요.'
+            error.value =
+                res.data?.message || '회원가입에 실패했습니다. 입력 정보를 다시 확인해 주세요.'
         }
     } catch (e) {
-        error.value =
-            e.response?.data?.message ||
-            '회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+        const status = e.response?.status
+        const serverMessage = e.response?.data?.message
+
+        if (status === 400) {
+            error.value = serverMessage || '입력한 정보가 유효하지 않습니다.'
+        } else if (status === 409) {
+            // 예: 이메일 중복 등
+            error.value = serverMessage || '이미 사용 중인 이메일입니다.'
+        } else if (status >= 500) {
+            error.value = '서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+        } else {
+            error.value =
+                serverMessage || '회원가입 중 알 수 없는 오류가 발생했습니다.'
+        }
     } finally {
         loading.value = false
     }
+
 }
 
 const openLogin = () => {

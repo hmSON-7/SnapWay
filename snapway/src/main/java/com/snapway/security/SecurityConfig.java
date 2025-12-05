@@ -43,7 +43,7 @@ public class SecurityConfig {
             // 요청 권한 설정
             .authorizeHttpRequests(auth -> auth
                 // 회원가입, 로그인, 중복체크 등은 인증 없이 접근 허용
-                .requestMatchers("/api/member/regist", "/api/member/login", "/api/member/check-email").permitAll()
+                .requestMatchers("/api/member/regist", "/api/member/login", "/api/member/logout", "/api/member/check-email").permitAll()
                 // 정적 리소스 허용 (필요 시)
                 .requestMatchers("/css/**", "/images/**", "/js/**").permitAll()
                 // 그 외 모든 요청은 인증 필요

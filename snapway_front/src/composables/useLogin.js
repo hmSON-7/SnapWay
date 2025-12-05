@@ -4,9 +4,10 @@ import { useRouter } from "vue-router";
 import { loginMember } from "@/api/memberApi";
 import { useAuthStore } from "@/store/useAuthStore";
 
-export function useLogin() {
+export function useLogin(options = {}) {
   const router = useRouter();
   const authStore = useAuthStore();
+  const { onSuccess } = options; // ✅ 성공 시 실행할 콜백 (모달 닫기 등)
 
   const email = ref("");
   const password = ref("");
@@ -31,8 +32,12 @@ export function useLogin() {
 
       const res = await loginMember(email.value, password.value);
 
-      if (res.data.message === "success") {
-        // ✅ 백엔드에서 온 유저 정보(JSON 객체)
+      // 2xx + message === 'success' 인 경우만 성공 처리
+      if (
+        res.status >= 200 &&
+        res.status < 300 &&
+        res.data.message === "success"
+      ) {
         const userInfo = res.data.userInfo;
 
         // ✅ Pinia에 유저 정보 저장 (전역 상태)
@@ -43,7 +48,13 @@ export function useLogin() {
 
         resetForm();
 
-        await router.push({ name: "home" });
+        // ✅ 모달에서 콜백을 넘겨줬다면, 우선 콜백 실행
+        if (typeof onSuccess === "function") {
+          onSuccess();
+        } else {
+          // 콜백이 없으면 기본 동작으로 홈으로 이동
+          await router.push({ name: "home" });
+        }
       } else {
         error.value = "이메일 또는 비밀번호를 다시 확인해 주세요.";
       }

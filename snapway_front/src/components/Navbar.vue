@@ -38,6 +38,7 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import LoginModal from '@/components/LoginModal.vue'
 import { useAuthStore } from '@/store/useAuthStore'
+import { logoutMember } from '@/api/memberApi'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -58,12 +59,25 @@ const goRegist = () => {
 }
 
 const goMyPage = () => {
-    router.push({ name: 'mypage' })
+    router.push({ name: 'myPage' })
 }
 
-const logout = () => {
-    authStore.logout()
-    router.push({ name: 'home' })
+const logout = async () => {
+    try {
+        // 1) 백엔드에 세션 삭제 요청
+        await logoutMember()
+
+        // 2) 프론트 전역 상태 + localStorage 정리
+        authStore.logout()
+
+        // 3) 홈으로 이동
+        router.push({ name: 'home' })
+    } catch (e) {
+        // 실패했더라도 프론트는 그냥 로그아웃 처리.. 백엔드가 알아서 하겠지...
+        authStore.logout()
+        router.push({ name: 'home' })
+        console.error('로그아웃 실패:', e)
+    }
 }
 </script>
 

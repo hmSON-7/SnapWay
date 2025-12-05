@@ -7,7 +7,7 @@ export const useAuthStore = defineStore("auth", {
     isLoggedIn: false,
   }),
   getters: {
-    userName: (state) => state.loginUser?.nickname ?? "",
+    userName: (state) => state.loginUser?.username ?? "",
   },
   actions: {
     setUser(user) {

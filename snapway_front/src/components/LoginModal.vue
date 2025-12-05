@@ -39,17 +39,20 @@ import { useLogin } from '@/composables/useLogin'
 
 const emit = defineEmits(['close'])
 
+const onClose = () => {
+    emit('close')
+}
+
 const {
     email,
     password,
     error,
     loading,
     onSubmit,
-} = useLogin()
-
-const onClose = () => {
-    emit('close')
-}
+} = useLogin({
+    // ✅ 로그인 성공 시 모달 닫기
+    onSuccess: () => emit('close'),
+})
 </script>
 
 <style scoped>
