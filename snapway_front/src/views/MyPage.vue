@@ -1,20 +1,21 @@
 <!-- src/views/MyPage.vue -->
 <template>
     <div class="mypage">
-        <div class="mypage-card" v-if="isLoggedIn && loginUser">
+        <!-- 로그인 + 데이터 로드 성공 -->
+        <div class="mypage-card" v-if="!loading && member">
             <div class="header">
                 <div class="avatar">
                     <span v-if="initials">{{ initials }}</span>
                 </div>
                 <div class="user-main">
                     <h1 class="username">
-                        {{ loginUser.username }}
+                        {{ member.username }}
                     </h1>
                     <p class="email">
-                        {{ loginUser.email }}
+                        {{ member.email }}
                     </p>
                     <p class="badge">
-                        {{ loginUser.role || 'USER' }}
+                        {{ member.role || 'USER' }}
                     </p>
                 </div>
             </div>
@@ -25,25 +26,25 @@
                 <div class="info-item">
                     <span class="label">성별</span>
                     <span class="value">
-                        {{ loginUser.gender || '비공개' }}
+                        {{ member.gender || '비공개' }}
                     </span>
                 </div>
                 <div class="info-item">
                     <span class="label">생년월일</span>
                     <span class="value">
-                        {{ loginUser.birthday || '비공개' }}
+                        {{ member.birthday || '비공개' }}
                     </span>
                 </div>
                 <div class="info-item">
                     <span class="label">여행 스타일</span>
                     <span class="value">
-                        {{ loginUser.style || '아직 선택하지 않았어요' }}
+                        {{ member.style || '아직 선택하지 않았어요' }}
                     </span>
                 </div>
                 <div class="info-item">
                     <span class="label">프로필 이미지</span>
                     <span class="value">
-                        {{ loginUser.profileImg ? '등록됨' : '미등록' }}
+                        {{ member.profileImg ? '등록됨' : '미등록' }}
                     </span>
                 </div>
             </div>
@@ -58,6 +59,13 @@
             </div>
         </div>
 
+        <!-- 로딩 중 -->
+        <div v-else-if="loading" class="mypage-empty">
+            <h2>로딩 중...</h2>
+            <p>회원 정보를 불러오는 중입니다.</p>
+        </div>
+
+        <!-- 로그인 안 됐거나 세션 만료 -->
         <div v-else class="mypage-empty">
             <h2>로그인이 필요합니다</h2>
             <p>마이페이지를 보려면 먼저 로그인해 주세요.</p>
@@ -69,24 +77,39 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/store/useAuthStore'
+import { fetchMyInfo, logoutMember } from '@/api/memberApi'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { loginUser, isLoggedIn } = storeToRefs(authStore)
+const { isLoggedIn } = storeToRefs(authStore)
+
+// 서버에서 가져온 회원 정보
+const member = ref(null)
+const loading = ref(true)
 
 // 새로고침 후 직접 /mypage 들어온 경우를 대비해 localStorage에서 복원
-onMounted(() => {
+onMounted(async () => {
     authStore.loadFromStorage()
+
+    try {
+        const { data } = await fetchMyInfo() // GET /api/member/me
+        member.value = data
+    } catch (e) {
+        // 세션이 없거나 401이면 member는 null로 유지 -> 로그인 필요 화면 표시
+        console.error('회원 정보 조회 실패:', e)
+    } finally {
+        loading.value = false
+    }
 })
 
 // 아바타에 쓸 이니셜
 const initials = computed(() => {
-    if (!loginUser.value?.username) return ''
-    const name = loginUser.value.username.trim()
+    if (!member.value?.username) return ''
+    const name = member.value.username.trim()
     return name.length >= 2 ? name.slice(0, 2) : name[0]
 })
 
@@ -94,7 +117,12 @@ const goHome = () => {
     router.push({ name: 'home' })
 }
 
-const onLogout = () => {
+const onLogout = async () => {
+    try {
+        await logoutMember() // 세션 삭제 API 호출
+    } catch (e) {
+        console.error('로그아웃 실패(무시 가능):', e)
+    }
     authStore.logout()
     router.push({ name: 'home' })
 }

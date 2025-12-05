@@ -1,7 +1,9 @@
 <template>
     <header class="navbar">
-        <RouterLink to="/" class="logo">
-            <img src="@/assets/logoImg.png" alt="SNAPWAY 홈" class="logo-img" />
+        <!-- 로고: 아이콘 + 그라데이션 텍스트 -->
+        <RouterLink to="/" class="navbar-brand gradient-logo">
+            <i class="fas fa-map-marked-alt me-2"></i>
+            SNAPWAY
         </RouterLink>
 
         <nav class="menu">
@@ -19,7 +21,7 @@
                     환영합니다 {{ userName }}님!
                 </span>
                 <button class="nav-btn ghost" @click="goMyPage">
-                    회원정보
+                    마이페이지
                 </button>
                 <button class="nav-btn outline" @click="logout">
                     로그아웃
@@ -64,16 +66,10 @@ const goMyPage = () => {
 
 const logout = async () => {
     try {
-        // 1) 백엔드에 세션 삭제 요청
         await logoutMember()
-
-        // 2) 프론트 전역 상태 + localStorage 정리
         authStore.logout()
-
-        // 3) 홈으로 이동
         router.push({ name: 'home' })
     } catch (e) {
-        // 실패했더라도 프론트는 그냥 로그아웃 처리.. 백엔드가 알아서 하겠지...
         authStore.logout()
         router.push({ name: 'home' })
         console.error('로그아웃 실패:', e)
@@ -82,7 +78,28 @@ const logout = async () => {
 </script>
 
 <style scoped>
-/* 기존 스타일 유지 + 환영 문구 살짝 스타일링 */
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 1.6rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+/* 로고 텍스트 + 아이콘에 그라데이션 컬러 */
+.gradient-logo {
+    background-image: linear-gradient(135deg, #1e88e5, #1565c0, #6a11cb);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+
+.gradient-logo:hover {
+    filter: brightness(1.05);
+}
+
 .navbar {
     position: sticky;
     top: 0;
@@ -100,6 +117,7 @@ const logout = async () => {
     box-sizing: border-box;
 }
 
+/* 이전 이미지 로고용 클래스는 그대로 두되, 지금은 미사용 */
 .logo {
     display: inline-flex;
     align-items: center;
@@ -190,7 +208,6 @@ const logout = async () => {
 
     .welcome-text {
         display: none;
-        /* 모바일에서 공간 부족할 경우 숨겨도 됨 */
     }
 }
 </style>
