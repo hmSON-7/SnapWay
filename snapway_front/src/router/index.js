@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Home from "../views/Home.vue";
-import Login from "../views/login.vue"; // 🔹 새로 추가
+import Regist from "../views/Regist.vue"; // 🔹 새로 추가
 
 const routes = [
   { path: "/", name: "home", component: Home },
-  { path: "/login", name: "login", component: Login }, // 🔹 로그인 라우트
+  { path: "/regist", name: "regist", component: Regist }, // 🔹 회원가입 라우트
   // 이후 /mypage 등도 여기에서 추가
 ];
 

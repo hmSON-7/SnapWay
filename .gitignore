@@ -1,2 +1,4 @@
 /.metadata/
 node_-moudles
+.env
+.env.*.local

@@ -4,11 +4,22 @@
     <NavBar />
 
     <RouterView />
+
+    <Footer />
   </div>
 </template>
 
 <script setup>
 import NavBar from '@/components/Navbar.vue'
+import Footer from '@/components/Footer.vue'
+import { onMounted } from 'vue'
+import { useAuthStore } from '@/store/useAuthStore'
+
+const authStore = useAuthStore()
+
+onMounted(() => {
+  authStore.loadFromStorage()   // 만약 사용자가 새로고침 시 localStorage → Pinia로 복원
+})
 </script>
 
 <style>

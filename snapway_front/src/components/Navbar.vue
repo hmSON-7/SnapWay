@@ -1,20 +1,23 @@
-<!-- src/components/NavBar.vue -->
 <template>
     <header class="navbar">
-        <!-- 로고/홈 버튼 (이미지 클릭 시 / 로 이동) -->
         <RouterLink to="/" class="logo">
             <img src="@/assets/logoImg.png" alt="SNAPWAY 홈" class="logo-img" />
         </RouterLink>
 
-        <!-- 우측 메뉴 -->
         <nav class="menu">
-            <!-- 로그인 안 되어 있을 때 -->
-            <button v-if="!isLoggedIn" class="nav-btn primary" @click="goLogin">
+            <!-- 로그인 안 된 상태 -->
+            <button v-if="!isLoggedIn" class="nav-btn primary" @click="openLogin">
                 로그인
             </button>
+            <button v-if="!isLoggedIn" class="nav-btn primary" @click="goRegist">
+                회원가입
+            </button>
 
-            <!-- 로그인 되어 있을 때 -->
+            <!-- 로그인 된 상태 -->
             <template v-else>
+                <span class="welcome-text">
+                    환영합니다 {{ userName }}님!
+                </span>
                 <button class="nav-btn ghost" @click="goMyPage">
                     회원정보
                 </button>
@@ -24,39 +27,50 @@
             </template>
         </nav>
     </header>
+
+    <!-- 로그인 모달 -->
+    <LoginModal v-if="showLoginModal" @close="closeLogin" />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import LoginModal from '@/components/LoginModal.vue'
+import { useAuthStore } from '@/store/useAuthStore'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const { isLoggedIn, userName } = storeToRefs(authStore)
 
-// 예시: localStorage, Pinia, Vuex 등에서 로그인 여부를 가져온다고 가정
-const isLoggedIn = computed(() => {
-    return !!localStorage.getItem('accessToken')
-})
+const showLoginModal = ref(false)
 
-const goLogin = () => {
-    router.push({ name: 'login' }) // /login 라우트에 name: 'login' 설정 가정
+const openLogin = () => {
+    showLoginModal.value = true
+}
+
+const closeLogin = () => {
+    showLoginModal.value = false
+}
+
+const goRegist = () => {
+    router.push({ name: 'regist' })
 }
 
 const goMyPage = () => {
-    router.push({ name: 'mypage' }) // /mypage 라우트에 name: 'mypage' 설정 가정
+    router.push({ name: 'mypage' })
 }
 
 const logout = () => {
-    // 토큰/유저 정보 삭제
-    localStorage.removeItem('accessToken')
-    // 필요하면 추가 상태값도 정리
+    authStore.logout()
     router.push({ name: 'home' })
 }
 </script>
 
 <style scoped>
+/* 기존 스타일 유지 + 환영 문구 살짝 스타일링 */
 .navbar {
     position: sticky;
-    /* 항상 상단 고정 (원하면 fixed로 변경 가능) */
     top: 0;
     z-index: 50;
     width: 100%;
@@ -70,7 +84,6 @@ const logout = () => {
     border-bottom: 1px solid rgba(226, 232, 240, 0.9);
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
     box-sizing: border-box;
-    /* 패딩 포함해서 100% 처리 */
 }
 
 .logo {
@@ -96,6 +109,13 @@ const logout = () => {
     gap: 10px;
 }
 
+.welcome-text {
+    margin-right: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
 .nav-btn {
     padding: 8px 16px;
     border-radius: 999px;
@@ -109,7 +129,6 @@ const logout = () => {
     justify-content: center;
 }
 
-/* 파란색 기본 버튼 (로그인) */
 .nav-btn.primary {
     background: linear-gradient(135deg, #1e88e5, #1565c0);
     color: #fff;
@@ -121,7 +140,6 @@ const logout = () => {
     box-shadow: 0 12px 26px rgba(21, 101, 192, 0.4);
 }
 
-/* 회색 라인 버튼 (로그아웃) */
 .nav-btn.outline {
     background: transparent;
     color: #1e293b;
@@ -132,7 +150,6 @@ const logout = () => {
     background: #e2e8f0;
 }
 
-/* 연한 배경 버튼 (회원정보) */
 .nav-btn.ghost {
     background: #e2e8f0;
     color: #1e293b;
@@ -142,7 +159,6 @@ const logout = () => {
     background: #cbd5e1;
 }
 
-/* 모바일 대응 */
 @media (max-width: 768px) {
     .navbar {
         padding: 0 16px;
@@ -156,6 +172,11 @@ const logout = () => {
     .nav-btn {
         padding: 6px 12px;
         font-size: 0.9rem;
+    }
+
+    .welcome-text {
+        display: none;
+        /* 모바일에서 공간 부족할 경우 숨겨도 됨 */
     }
 }
 </style>
