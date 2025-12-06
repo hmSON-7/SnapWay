@@ -1,4 +1,4 @@
-/* 모달로 만들었으니 사용하지 않음.*/
+<!-- /* 모달로 만들었으니 사용하지 않음.*/
 <template>
     <div class="login-page">
         <div class="login-card">
@@ -172,4 +172,4 @@ input:focus {
         padding: 24px 20px 30px;
     }
 }
-</style>
+</style> -->

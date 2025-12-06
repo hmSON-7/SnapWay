@@ -1,16 +1,19 @@
+// src/main.js
 import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router";
 import { createPinia } from "pinia";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-import api from "@/api/http.js";
+import http, { csrfClient } from "@/api/http.js";
 
 const app = createApp(App);
 const pinia = createPinia();
 
-const initCsrf = async () => {
-  await api.post("/csrf"); // 쿠키(XSRF-TOKEN) + 응답 JSON(CsrfToken) 생성
-};
+// csrf 사용시 활성화
+// const initCsrf = async () => {
+//   // 실제 요청: POST http://localhost:8080/api/csrf
+//   await csrfClient.post("/api/csrf");
+// };
 
-await initCsrf();
+// await initCsrf();
 app.use(router).use(pinia).mount("#app");

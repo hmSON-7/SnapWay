@@ -12,11 +12,11 @@ export const logoutMember = () => {
 };
 
 // 마이페이지 진입 시 회원정보 조회
-export const fetchMyInfo = () => {
-  return http.get("/member/fetchMyInfo");
+export const fetchMyInfo = (member) => {
+  return http.get("/member/fetchMyInfo", member);
 };
 
 // 회원가입
-export const registMember = () => {
-  return http.post("/member/regist", {});
+export const registMember = (member) => {
+  return http.post("/member/regist", member);
 };

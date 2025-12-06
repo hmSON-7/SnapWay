@@ -63,32 +63,34 @@ public class SecurityConfig {
 //                .anyRequest().authenticated()
 //            );
     	
-    	 http
-         // CSRF는 활성화 (아래에서 CookieCsrfTokenRepository 설정)
-         .csrf(csrf -> csrf
-             .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-             .ignoringRequestMatchers("/api/csrf")
-         )
+    	http
+    	
+        // CSRF: 쿠키(XSRF-TOKEN) + 헤더(X-XSRF-TOKEN) 조합 사용
+//        .csrf(csrf -> csrf
+//            .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+//            .ignoringRequestMatchers("/api/csrf", "/api/member/login") // 토큰 발급 엔드포인트는 예외
+//            
+//        )
+    	.csrf(csrf->csrf.disable())
 
-         // CORS 설정 활성화
-         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        // CORS
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-         // Form Login & Http Basic 비활성화
-         .formLogin(form -> form.disable())
-         .httpBasic(basic -> basic.disable())
+        // 폼로그인/Basic 비활성화
+        .formLogin(form -> form.disable())
+        .httpBasic(basic -> basic.disable())
 
-         // 권한 설정
-         .authorizeHttpRequests(auth -> auth
-             .requestMatchers(
-                 "/api/member/regist",
-                 "/api/member/login",
-                 "/api/member/logout",
-                 "/api/member/check-email",
-                 "/api/csrf"          // CSRF 토큰 받는 엔드포인트는 인증 없이 허용
-             ).permitAll()
-             .requestMatchers("/css/**", "/images/**", "/js/**").permitAll()
-             .anyRequest().authenticated()
-         );
+        // 권한 설정
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(
+                "/api/member/regist",
+                "/api/member/login",
+                "/api/member/logout",
+                "/api/member/check-email",
+                "/api/csrf"   // csrf 토큰 발급용
+            ).permitAll()
+            .anyRequest().authenticated()
+        );
 
         return http.build();
     }

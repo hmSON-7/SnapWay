@@ -54,13 +54,20 @@
                 <!-- 여행 스타일 -->
                 <div class="form-group">
                     <label for="style">여행 스타일</label>
+                    <!-- 여행 스타일 -->
                     <select id="style" v-model="style">
                         <option value="">선택 안 함</option>
-                        <option value="RELAX">휴양형</option>
-                        <option value="ADVENTURE">액티비티</option>
+                        <!-- 🔴 현재는 RELAX, ADVENTURE 등으로 되어 있음 -->
+                        <!-- ✅ TravelStyle enum에 맞게 수정 -->
+                        <option value="HEALING">휴양형</option>
+                        <option value="ACTIVITY">액티비티</option>
                         <option value="CITY">도시 탐방</option>
                         <option value="FOOD">먹거리 중심</option>
+                        <option value="NATURE">자연</option>
+                        <option value="PHOTO">사진</option>
+                        <option value="CULTURE">문화</option>
                     </select>
+
                 </div>
 
                 <!-- 메시지 -->
@@ -78,6 +85,9 @@
 
                 <button class="btn ghost" type="button" @click="openLogin">
                     이미 계정이 있으신가요? 로그인 하기
+                </button>
+                <button class="btn ghost" type="button" @click="goHome">
+                    홈으로
                 </button>
             </form>
         </div>
@@ -151,7 +161,7 @@ const onSubmit = async () => {
         birthday: birthday.value || null,
         style: style.value || null,
     }
-
+    console.log('보내는 member:', member)
     try {
         loading.value = true
 
@@ -162,10 +172,8 @@ const onSubmit = async () => {
             successMessage.value = '회원가입이 완료되었습니다. 이제 로그인해 주세요.'
             resetForm()
 
-            setTimeout(() => {
-                showLoginModal.value = true
-                // 또는 router.push({ name: 'login' })
-            }, 800)
+            // ✅ 홈으로 이동하면서 loginModal=true 쿼리 전달
+            router.push({ name: 'home', query: { loginModal: 'true' } })
         } else {
             error.value =
                 res.data?.message || '회원가입에 실패했습니다. 입력 정보를 다시 확인해 주세요.'
@@ -194,6 +202,11 @@ const onSubmit = async () => {
 const openLogin = () => {
     showLoginModal.value = true
 }
+
+const goHome = () => {
+    router.push({ name: 'home' })
+}
+
 </script>
 
 <style scoped>
