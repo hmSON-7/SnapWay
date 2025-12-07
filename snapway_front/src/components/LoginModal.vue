@@ -1,0 +1,218 @@
+<!-- src/components/LoginModal.vue -->
+<template>
+    <div class="backdrop" @click.self="onClose">
+        <div class="login-card">
+            <h1 class="login-title">로그인</h1>
+            <p class="login-subtitle">
+                SNAPWAY에 다시 오신 것을 환영합니다.
+            </p>
+
+            <form class="login-form" @submit.prevent="onSubmit">
+                <div class="form-group">
+                    <label for="email">이메일</label>
+                    <input id="email" v-model="email" type="email" placeholder="example@snapway.com" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">비밀번호</label>
+                    <input id="password" v-model="password" type="password" placeholder="비밀번호를 입력하세요" required />
+                </div>
+
+                <p v-if="error" class="error-message">
+                    {{ error }}
+                </p>
+
+                <button class="btn primary" type="submit" :disabled="loading">
+                    {{ loading ? '로그인 중...' : '로그인' }}
+                </button>
+
+                <button class="btn ghost" type="button" @click="onClose">
+                    닫기
+                </button>
+            </form>
+        </div>
+    </div>
+</template>
+
+<script setup>
+import { useLogin } from '@/composables/useLogin'
+
+const emit = defineEmits(['close'])
+
+const onClose = () => {
+    emit('close')
+}
+
+const {
+    email,
+    password,
+    error,
+    loading,
+    onSubmit,
+} = useLogin({
+    // ✅ 로그인 성공 시 모달 닫기
+    onSuccess: () => emit('close'),
+})
+</script>
+
+<style scoped>
+.backdrop {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at top left, #0f172a 0, #020617 45%, #000000 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+/* 카드 전체에 글래스모피즘 + 등장 애니메이션 */
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 32px 28px 36px;
+    border-radius: 24px;
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow:
+        0 20px 45px rgba(15, 23, 42, 0.75),
+        0 0 0 1px rgba(148, 163, 184, 0.18);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    animation: modal-pop 0.22s ease-out;
+}
+
+/* 제목/텍스트 컬러 조정 */
+.login-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: #e5f0ff;
+}
+
+.login-subtitle {
+    font-size: 0.95rem;
+    color: #94a3b8;
+    margin-bottom: 24px;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.form-group {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #cbd5f5;
+}
+
+/* 인풋을 어두운 글래스 스타일로 */
+input {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: rgba(15, 23, 42, 0.65);
+    color: #e5e7eb;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.16s ease-out, box-shadow 0.16s ease-out, background 0.16s ease-out;
+}
+
+input::placeholder {
+    color: #64748b;
+}
+
+input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.55);
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.error-message {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: #f97373;
+}
+
+/* 버튼 공통 */
+.btn {
+    margin-top: 4px;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.18s ease-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 메인 버튼: 그라디언트 + 살짝 발광 */
+.btn.primary {
+    background: linear-gradient(135deg, #38bdf8, #2563eb);
+    color: #f9fafb;
+    box-shadow:
+        0 10px 24px rgba(37, 99, 235, 0.65),
+        0 0 0 1px rgba(191, 219, 254, 0.35);
+}
+
+.btn.primary:disabled {
+    opacity: 0.7;
+    cursor: default;
+    box-shadow: none;
+    transform: none;
+}
+
+.btn.primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+        0 14px 32px rgba(37, 99, 235, 0.8),
+        0 0 0 1px rgba(191, 219, 254, 0.45);
+}
+
+/* 서브 버튼: 투명한 글래스 스타일 */
+.btn.ghost {
+    margin-top: 8px;
+    background: rgba(15, 23, 42, 0.7);
+    color: #e2e8f0;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+}
+
+.btn.ghost:hover {
+    background: rgba(30, 64, 175, 0.6);
+    border-color: rgba(191, 219, 254, 0.85);
+}
+
+/* 살짝 확대되며 나타나는 애니메이션 */
+@keyframes modal-pop {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 모바일 대응 */
+@media (max-width: 768px) {
+    .login-card {
+        margin: 0 16px;
+        padding: 24px 20px 30px;
+    }
+}
+</style>

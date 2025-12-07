@@ -18,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -105,5 +106,12 @@ class MemberControllerTest {
                 .andExpect(status().isUnauthorized()) // 401 Unauthorized 기대
                 .andExpect(jsonPath("$.message").value("fail"))
                 .andDo(print());
+    }
+    
+    @Test
+    void forTest() throws Exception {
+    	BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    	System.out.println(encoder.encode("1234"));
+
     }
 }
