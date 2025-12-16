@@ -4,13 +4,103 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
 
 // 로컬 파일 관련 유틸 클래스
-public final class FileUtil {
+// 외부 설정값이 필요해서 인스턴스로 바꿨습니다.
+@Component
+public class FileUtil {
+	private static final Logger log = LoggerFactory.getLogger(FileUtil.class);
 
-	private FileUtil() {
+	@Value("${sftp.host}")
+    private String host;
+    
+    @Value("${sftp.port}")
+    private int port;
+    
+    @Value("${sftp.username}")
+    private String username;
+    
+    @Value("${sftp.password}")
+    private String password;
+    
+    @Value("${sftp.basepath:/home/snapway/files/}")
+    private String basePath;
+
+	
+	
+	/*
+	 * 게시글의 이미지 파일을 라즈베리파이에 저장합니다.
+	 */
+	public void saveMultipartFile(List<MultipartFile> files, long articleId) throws Exception {
+		JSch jsch = new JSch();
+		Session session = null;
+		ChannelSftp channelSftp = null;
+		
+		try {
+			// 세션 생성 및 연결
+			session = jsch.getSession(username, host, port);
+			session.setPassword(password);
+			
+			Properties config = new Properties();
+			config.put("StrictHostKeyChecking", "no");
+			session.setConfig(config);
+			session.connect();
+			
+			// SFTP 채널 열기
+			channelSftp = (ChannelSftp) session.openChannel("sftp");
+			channelSftp.connect();
+			
+			// 디렉토리 생성(게시글 id별로 생성함)
+			String remotePath = basePath + articleId + "/";
+			createDirectories(channelSftp, remotePath);
+			
+			// 파일 업로드
+			for(MultipartFile file : files) {
+				if(file.getSize() > 0) {
+					String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+					channelSftp.put(file.getInputStream(), remotePath + fileName);
+					log.info("파일 업로드 성공: {}", fileName);
+				}
+			}
+		} finally {
+			if(channelSftp != null && channelSftp.isConnected())
+				channelSftp.disconnect();
+			if(session != null && session.isConnected())
+				session.disconnect();
+		}
 	}
 	
+	private void createDirectories(ChannelSftp channelSftp, String path) throws SftpException{
+		String[] dirs = path.split("/");
+		String currentPath = "";
+		
+		for(String dir : dirs) {
+			if(dir.isEmpty())
+				continue;
+			currentPath += "/" + dir;
+			
+			try {
+				channelSftp.cd(currentPath);
+			} catch (SftpException e) { // 해당 경로가 없으면
+				channelSftp.mkdir(currentPath); // 디렉토리를 만들고
+				channelSftp.cd(currentPath); // 만든 디렉토리로 이동
+			}
+		}
+	}
 
 	/**
 	 * 주어진 경로의 로컬 파일을 File 객체로 반환합니다. 파일이 없거나 디렉터리면 IOException을 던집니다.
@@ -144,5 +234,7 @@ public final class FileUtil {
 	    // 재귀적으로 내부를 전부 비워주고 삭제를 시도해야한다...
 	    return file.delete();
 	}
+	
+	
 
 }
