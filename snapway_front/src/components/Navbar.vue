@@ -20,6 +20,12 @@
                 <span class="welcome-text">
                     환영합니다 {{ userName }}님!
                 </span>
+                <button class="nav-btn ghost" @click="router.push({ name: 'map' })">
+                    여행지 찾기
+                </button>
+                <button class="nav-btn ghost" @click="router.push({ name: 'board' })">
+                    게시판
+                </button>
                 <button class="nav-btn ghost" @click="goMyPage">
                     마이페이지
                 </button>

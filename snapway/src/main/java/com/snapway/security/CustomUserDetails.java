@@ -13,6 +13,12 @@ import com.snapway.model.dto.Member;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * [보관용] JWT 도입 시 사용될 UserDetails 구현체
+ * 현재는 세션 기반 로그인(MemberController 직접 제어)을 사용하므로 사용하지 않음.
+ * 추후 JWT 및 Security 정석 인증 전환 시 활성화 예정.
+ */
+@Deprecated
 @Getter
 @RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {

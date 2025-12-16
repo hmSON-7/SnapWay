@@ -14,6 +14,12 @@ import com.snapway.model.dto.Member;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * [보관용] JWT 도입 시 사용될 UserDetailsService
+ * 현재는 세션 기반 로그인으로 전환되어 빈 등록(@Service)을 해제함.
+ * 추후 JWT 도입 시 주석 해제하여 사용.
+ */
+@Deprecated
 @Slf4j
 @Service
 @RequiredArgsConstructor

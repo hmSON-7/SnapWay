@@ -34,3 +34,8 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# API Keys & Secrets (보안)
+src/api/key.js
+.env
+.env.*.local
