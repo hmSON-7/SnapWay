@@ -3,7 +3,6 @@ package com.snapway.controller;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,13 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.snapway.model.dto.Member;
 import com.snapway.model.service.MemberService;
 
 import jakarta.servlet.http.HttpSession;
-
-import com.snapway.model.dto.Member;
-import com.snapway.model.dto.Role;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -100,6 +96,7 @@ public class MemberController {
 				// 로그인 성공 -> JWT 토큰 발급 로직이 들어갈 자리 (현재는 회원 정보만 반환)
 				resultMap.put("userInfo", loginMember);
 				resultMap.put("message", "success");
+				log.info("로그인 성공: {}", email);
 				status = HttpStatus.OK;
 			} else {
 				resultMap.put("message", "fail");
@@ -121,8 +118,8 @@ public class MemberController {
 		 * 
 		 * // 3. 프론트로 내려줄 요약 정보 (비밀번호 제외) resultMap.put("userInfo", dummyMember);
 		 * resultMap.put("message", "success"); status = HttpStatus.OK;
+		 * System.out.println("로그인 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		 */
-		System.out.println("로그인 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		return new ResponseEntity<>(resultMap, status);
 	}
 
@@ -162,7 +159,7 @@ public class MemberController {
 	@PostMapping("/logout")
 	public void logout(HttpSession session) {
 		session.invalidate();
-		System.out.println("로그아웃 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+		log.debug("로그아웃 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 	}
 
 	@GetMapping("/fetchMyInfo")

@@ -1,7 +1,7 @@
 // src/api/http.js
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL; // 예: http://localhost:8080
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 // 일반 API 호출용
 const http = axios.create({
@@ -15,6 +15,9 @@ export const csrfClient = axios.create({
   baseURL, // http://localhost:8080
   withCredentials: true,
   timeout: 5000,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 // 쿠키에서 XSRF-TOKEN 읽기

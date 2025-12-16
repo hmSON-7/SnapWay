@@ -34,3 +34,6 @@ build/
 
 ### application-secret.yml ###
 application-secret.yml
+
+### Secrets & Local Configuration ###
+src/main/resources/application_db.properties

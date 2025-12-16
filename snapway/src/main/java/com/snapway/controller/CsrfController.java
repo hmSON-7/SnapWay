@@ -11,6 +11,12 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * [보관용] CSRF 토큰 발급용 컨트롤러
+ * 현재 SecurityConfig에서 csrf.disable() 설정되었으므로 사용하지 않음.
+ * 추후 보안 강화 시 재사용 가능.
+ */
+@Deprecated
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
