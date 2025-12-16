@@ -15,4 +15,10 @@ public interface MemberMapper {
     
     // 이메일 중복 체크
     int checkEmail(String email) throws SQLException;
+    
+    // 회원 정보 수정
+    int updateMember(Member member) throws SQLException;
+    
+    // 회원 탈퇴
+    int deleteMember(String email) throws SQLException;
 }

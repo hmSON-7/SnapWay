@@ -5,8 +5,11 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -173,5 +176,83 @@ public class MemberController {
 
 		return ResponseEntity.ok(loginUser);
 	}
+	
+	/**
+     * 회원 정보 수정 (POST/api/member/update)
+     */
+    @PutMapping("/update")
+    public ResponseEntity<Map<String, Object>> updateMember(@RequestBody Member member, HttpSession session) {
+        Map<String, Object> resultMap = new HashMap<>();
+        
+        // 1. 세션 확인 (본인 확인)
+        Member loginUser = (Member) session.getAttribute("loginUser");
+        if (loginUser == null || !loginUser.getEmail().equals(member.getEmail())) {
+             resultMap.put("message", "unauthorized");
+             return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+        }
+
+        try {
+            // 2. 정보 수정 요청
+            int result = memberService.updateMember(member);
+            
+            if (result > 0) {
+                // 3. 성공 시 세션 정보 갱신 (비밀번호 제외한 주요 정보 업데이트)
+                loginUser.setUsername(member.getUsername());
+                loginUser.setGender(member.getGender());
+                loginUser.setBirthday(member.getBirthday());
+                if(member.getStyle() != null) loginUser.setStyle(member.getStyle());
+                // 프로필 이미지 등은 별도 처리가 필요할 수 있음. 차후 판단할 것.
+                
+                session.setAttribute("loginUser", loginUser);
+                
+                resultMap.put("message", "success");
+                return new ResponseEntity<>(resultMap, HttpStatus.OK);
+            } else {
+                // DB 업데이트 실패 (대상 없음 등)
+                resultMap.put("message", "fail");
+                return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
+            }
+            
+        } catch (Exception e) {
+            log.error("회원 수정 에러: ", e);
+            resultMap.put("message", "error");
+            return new ResponseEntity<>(resultMap, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 회원 탈퇴 (DELETE /api/member/{email})
+     */
+    @DeleteMapping("/{email}")
+    public ResponseEntity<Map<String, Object>> deleteMember(@PathVariable String email, HttpSession session) {
+        Map<String, Object> resultMap = new HashMap<>();
+        
+        // 1. 세션 확인
+        Member loginUser = (Member) session.getAttribute("loginUser");
+        if (loginUser == null || !loginUser.getEmail().equals(email)) {
+             resultMap.put("message", "unauthorized");
+             return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+        }
+
+        try {
+            // 2. 회원 삭제 요청
+            int result = memberService.deleteMember(email);
+            
+            if (result > 0) {
+                // 3. 성공 시 세션 무효화
+                session.invalidate();
+                resultMap.put("message", "success");
+                return new ResponseEntity<>(resultMap, HttpStatus.OK);
+            } else {
+                // 삭제 실패 (이미 삭제되었거나 존재하지 않음)
+                resultMap.put("message", "fail");
+                return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            log.error("회원 탈퇴 에러: ", e);
+            resultMap.put("message", "error");
+            return new ResponseEntity<>(resultMap, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
 }
