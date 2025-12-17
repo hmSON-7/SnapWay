@@ -5,7 +5,7 @@
 <mapper namespace="com.snapway.model.mapper.MemberMapper">
 
 	<resultMap type="member" id="memberMap">
-		<result column="id" property="id"/>
+		<id column="id" property="id"/>
 		<result column="email" property="email"/>
 		<result column="password" property="password"/>
 		<result column="username" property="username"/>
@@ -18,7 +18,7 @@
 	</resultMap>
 
 	<!-- 1. 회원가입 (INSERT) -->
-	<insert id="registMember" parameterType="member">
+	<insert id="registMember" parameterType="member" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
 		INSERT INTO member (
 			email, 
 			password, 

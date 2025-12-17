@@ -33,7 +33,7 @@ public class ArticleServiceImpl implements ArticleService {
 			throw new RuntimeException("게시글 등록 실패");
 		
 		if(files != null && !files.isEmpty())
-			fileUtil.saveMultipartFile(files, article.getArticleId());
+			fileUtil.saveMultipartFile(files, article.getAuthorId(), article.getArticleId());
 		
 	}
 

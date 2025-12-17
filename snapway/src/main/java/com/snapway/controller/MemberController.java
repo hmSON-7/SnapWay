@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.snapway.model.service.MemberService;
+import com.snapway.util.FileUtil;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MemberController {
 
 	private final MemberService memberService;
+	private final FileUtil fileUtil;
 
 	/**
 	 * 회원가입 (POST /api/member/regist)
@@ -54,6 +56,9 @@ public class MemberController {
 
 			// 1. 회원가입 시도
 			int result = memberService.registMember(member);
+			
+			// 사용자의 id로 된 경로를 서버에 생성.
+			fileUtil.createUserDirectory(member.getId());
 
 			if (result == 1) {
 				// 회원가입 성공

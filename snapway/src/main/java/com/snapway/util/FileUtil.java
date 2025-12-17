@@ -37,15 +37,53 @@ public class FileUtil {
     @Value("${sftp.password}")
     private String password;
     
-    @Value("${sftp.basepath:/home/snapway/files/}")
+    @Value("${sftp.basepath}")
     private String basePath;
 
-	
+    /**
+     * 회원가입 시 사용자의 파일 저장을 위한 디렉토리를 라즈베리파이에 생성.
+     * 
+     * @param username: 생성할 디렉토리명이 될 사용자 이름
+     * @throws Exception SFTP 연결 또는 디렉토리 생성 실패 시
+     */
+    public void createUserDirectory(int username) throws Exception {
+        JSch jsch = new JSch();
+        Session session = null;
+        ChannelSftp channelSftp = null;
+        
+        try {
+            // 세션 생성 및 연결
+            session = jsch.getSession(this.username, host, port);
+            session.setPassword(password);
+            
+            Properties config = new Properties();
+            config.put("StrictHostKeyChecking", "no");
+            session.setConfig(config);
+            session.connect();
+            
+            // SFTP 채널 열기
+            channelSftp = (ChannelSftp) session.openChannel("sftp");
+            channelSftp.connect();
+            
+            // 사용자 디렉토리 생성
+            String userPath = basePath + username + "/";
+            createDirectories(channelSftp, userPath);
+            
+            log.info("사용자 디렉토리 생성 성공: {}", userPath);
+            
+        } finally {
+            if(channelSftp != null && channelSftp.isConnected())
+                channelSftp.disconnect();
+            if(session != null && session.isConnected())
+                session.disconnect();
+        }
+    }
+
 	
 	/*
-	 * 게시글의 이미지 파일을 라즈베리파이에 저장합니다.
+	 * 게시글의 이미지 파일을 라즈베리파이에 저장.
 	 */
-	public void saveMultipartFile(List<MultipartFile> files, long articleId) throws Exception {
+	public void saveMultipartFile(List<MultipartFile> files, String userId, long articleId) throws Exception {
 		JSch jsch = new JSch();
 		Session session = null;
 		ChannelSftp channelSftp = null;
@@ -65,7 +103,7 @@ public class FileUtil {
 			channelSftp.connect();
 			
 			// 디렉토리 생성(게시글 id별로 생성함)
-			String remotePath = basePath + articleId + "/";
+			String remotePath = basePath + userId + "/" + articleId + "/";
 			createDirectories(channelSftp, remotePath);
 			
 			// 파일 업로드
