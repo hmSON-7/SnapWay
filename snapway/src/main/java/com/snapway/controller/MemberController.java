@@ -15,10 +15,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.snapway.model.dto.Member;
 import com.snapway.model.service.MemberService;
+import com.snapway.util.FileUtil;
 
 import jakarta.servlet.http.HttpSession;
+
+import com.snapway.model.dto.Member;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MemberController {
 
 	private final MemberService memberService;
+	private final FileUtil fileUtil;
 
 	/**
 	 * 회원가입 (POST /api/member/regist)
@@ -41,8 +45,7 @@ public class MemberController {
 		Map<String, Object> resultMap = new HashMap<>();
 		HttpStatus status;
 
-
-		try {
+try {
 			// 0. 이메일 중복 체크 (idCheck가 true면 중복, false면 사용 가능)
 			boolean isDuplicated = memberService.idCheck(member.getEmail());
 			if (isDuplicated) {
@@ -53,6 +56,9 @@ public class MemberController {
 
 			// 1. 회원가입 시도
 			int result = memberService.registMember(member);
+			
+			// 사용자의 id로 된 경로를 서버에 생성.
+			fileUtil.createUserDirectory(member.getId());
 
 			if (result == 1) {
 				// 회원가입 성공
@@ -99,7 +105,6 @@ public class MemberController {
 				// 로그인 성공 -> JWT 토큰 발급 로직이 들어갈 자리 (현재는 회원 정보만 반환)
 				resultMap.put("userInfo", loginMember);
 				resultMap.put("message", "success");
-				log.info("로그인 성공: {}", email);
 				status = HttpStatus.OK;
 			} else {
 				resultMap.put("message", "fail");
@@ -121,8 +126,8 @@ public class MemberController {
 		 * 
 		 * // 3. 프론트로 내려줄 요약 정보 (비밀번호 제외) resultMap.put("userInfo", dummyMember);
 		 * resultMap.put("message", "success"); status = HttpStatus.OK;
-		 * System.out.println("로그인 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		 */
+		System.out.println("로그인 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		return new ResponseEntity<>(resultMap, status);
 	}
 
@@ -162,7 +167,7 @@ public class MemberController {
 	@PostMapping("/logout")
 	public void logout(HttpSession session) {
 		session.invalidate();
-		log.debug("로그아웃 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+		System.out.println("로그아웃 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 	}
 
 	@GetMapping("/fetchMyInfo")
@@ -187,8 +192,8 @@ public class MemberController {
         // 1. 세션 확인 (본인 확인)
         Member loginUser = (Member) session.getAttribute("loginUser");
         if (loginUser == null || !loginUser.getEmail().equals(member.getEmail())) {
-             resultMap.put("message", "unauthorized");
-             return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+			resultMap.put("message", "unauthorized");
+			return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
         }
 
         try {
@@ -230,8 +235,8 @@ public class MemberController {
         // 1. 세션 확인
         Member loginUser = (Member) session.getAttribute("loginUser");
         if (loginUser == null || !loginUser.getEmail().equals(email)) {
-             resultMap.put("message", "unauthorized");
-             return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+			resultMap.put("message", "unauthorized");
+			return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
         }
 
         try {
@@ -254,5 +259,4 @@ public class MemberController {
             return new ResponseEntity<>(resultMap, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
 }

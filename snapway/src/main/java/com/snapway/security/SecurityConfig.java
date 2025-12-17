@@ -12,7 +12,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -21,10 +20,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 public class SecurityConfig {
 	
-	@Value("${app.frontServer-origin:http://localhost:5173}")
+	@Value("${app.frontServer-origin}")
     private String frontServerOrigin;
-    
-    @Value("${app.self-origin:http://localhost:8080}")
+	@Value("${app.self-origin}")
     private String selfOrigin;
 
     // 1. 비밀번호 암호화 빈 등록 (BCrypt)
@@ -43,33 +41,55 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     	// csrf 비활성화 할건지 활성화 할건지 상의하고 선택해서 사용
+//        http
+//            // REST API이므로 CSRF 보안 비활성화
+//            .csrf(csrf -> csrf.disable())
+//            
+//            // CORS 설정 (WebConfig에서 설정했더라도 Security에서도 허용해야 함)
+//            .cors(cors -> cors.configure(http))
+//            
+//            // Form Login & Http Basic 비활성화 (순수 REST API 방식)
+//            .formLogin(form -> form.disable())
+//            .httpBasic(basic -> basic.disable())
+//
+//            // 요청 권한 설정
+//            .authorizeHttpRequests(auth -> auth
+//                // 회원가입, 로그인, 중복체크 등은 인증 없이 접근 허용
+//                .requestMatchers("/api/member/regist", "/api/member/login", "/api/member/logout", "/api/member/check-email").permitAll()
+//                // 정적 리소스 허용 (필요 시)
+//                .requestMatchers("/css/**", "/images/**", "/js/**").permitAll()
+//                // 그 외 모든 요청은 인증 필요
+//                .anyRequest().authenticated()
+//            );
     	
     	http
-	    	.csrf(csrf->csrf.disable())
-	
-	        // CORS
-	        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-	
-	        // 폼로그인/Basic 비활성화
-	        .formLogin(form -> form.disable())
-	        .httpBasic(basic -> basic.disable())
-	
-//	        // 권한 설정
-//	        .authorizeHttpRequests(auth -> auth
-//	            .requestMatchers(
-//	                "/api/member/regist",
-//	                "/api/member/login",
-//	                "/api/member/logout",
-//	                "/api/member/check-email",
-//	                "/api/csrf"   // csrf 토큰 발급용
-//	            ).permitAll()
-//	            .anyRequest().authenticated()
-//	        );
-	        
-	        // [핵심] 모든 요청 허용 (로그인 여부 체크는 Controller에서 직접 수행)
-            .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll() 
-            );
+    	
+        // CSRF: 쿠키(XSRF-TOKEN) + 헤더(X-XSRF-TOKEN) 조합 사용
+//        .csrf(csrf -> csrf
+//            .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+//            .ignoringRequestMatchers("/api/csrf", "/api/member/login") // 토큰 발급 엔드포인트는 예외
+//            
+//        )
+    	.csrf(csrf->csrf.disable())
+
+        // CORS
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+        // 폼로그인/Basic 비활성화
+        .formLogin(form -> form.disable())
+        .httpBasic(basic -> basic.disable())
+
+        // 권한 설정
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(
+                "/api/member/regist",
+                "/api/member/login",
+                "/api/member/logout",
+                "/api/member/check-email",
+                "/api/csrf"
+            ).permitAll()
+            .anyRequest().authenticated()
+        );
 
 
         return http.build();
@@ -80,8 +100,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
                 frontServerOrigin,
-                selfOrigin,
-                "http://localhost:5173"
+                selfOrigin
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
