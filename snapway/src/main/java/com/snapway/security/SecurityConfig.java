@@ -87,9 +87,7 @@ public class SecurityConfig {
                 "/api/member/login",
                 "/api/member/logout",
                 "/api/member/check-email",
-                "/error/**",
-                "/api/csrf",   // csrf 토큰 발급용
-                "/api/article/**"
+                "/api/csrf"
             ).permitAll()
             .anyRequest().authenticated()
         );
