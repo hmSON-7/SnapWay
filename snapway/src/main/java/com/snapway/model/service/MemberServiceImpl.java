@@ -22,6 +22,7 @@ public class MemberServiceImpl implements MemberService {
 
     private final MemberMapper memberMapper;
     private final PasswordEncoder passwordEncoder; // SecurityConfig에서 빈으로 등록되어 있어야 함
+    @Deprecated // 이 의존성을 다시 사용하게 되면 제거할 것.
     private final AuthenticationManager authenticationManager; 
 
     @Override
@@ -91,5 +92,38 @@ public class MemberServiceImpl implements MemberService {
     public boolean idCheck(String email) throws Exception {
         int count = memberMapper.checkEmail(email);
         return count > 0; // 1 이상이면 중복(true)
+    }
+    
+    /**
+     * 회원 정보 수정
+     */
+    @Override
+    @Transactional
+    public int updateMember(Member member) throws Exception {
+        // [핵심 로직] 비밀번호 변경 요청이 들어왔는지 확인
+        // 프론트에서 비밀번호를 입력하지 않았다면 null 또는 ""(빈문자열)로 들어옴
+        if (member.getPassword() != null && !member.getPassword().trim().isEmpty()) {
+            // 값이 있다면 -> "비밀번호를 바꾸겠다"는 뜻
+            // 1. 새 비밀번호 암호화
+            String encodedPassword = passwordEncoder.encode(member.getPassword());
+            // 2. 암호화된 비밀번호로 덮어쓰기
+            member.setPassword(encodedPassword);
+        } else {
+            // 값이 없다면 -> "비밀번호는 안 바꿀래"라는 뜻
+            // null로 설정하여 Mapper의 <if> 조건이 거짓(false)이 되게 함 -> 쿼리에서 제외됨 (기존 비번 유지)
+            member.setPassword(null);
+        }
+
+        // DB 업데이트 수행 (수정된 행의 개수 반환)
+        return memberMapper.updateMember(member);
+    }
+    
+    /**
+     * 회원 탈퇴
+     */
+    @Override
+    public int deleteMember(String email) throws Exception {
+        // 삭제된 행의 개수 반환
+        return memberMapper.deleteMember(email);
     }
 }

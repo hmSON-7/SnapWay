@@ -25,4 +25,18 @@ public interface MemberService {
      * @return 중복 여부 (true: 중복, false: 사용 가능)
      */
     boolean idCheck(String email) throws Exception;
+    
+    /**
+     * 회원 정보 수정
+     * @param member 수정된 회원 정보를 담은 객체
+     * @return 회원 정보 수정 성공 여부(1: 처리 완료, 0: 실패)
+     */
+    int updateMember(Member member) throws Exception;
+    
+    /**
+     * 회원 탈퇴 처리
+     * @param email 탈퇴 요청한 유저의 이메일
+     * @return 탈퇴 처리 여부(1: 처리 완료, 0: 실패)
+     */
+    int deleteMember(String email) throws Exception;
 }

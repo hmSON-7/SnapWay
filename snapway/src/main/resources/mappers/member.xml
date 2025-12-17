@@ -63,5 +63,38 @@
         FROM member
         WHERE email = #{email}
     </select>
+    
+    <!-- 4. 회원 정보 수정 (UPDATE) -->
+    <!-- 혹여나 빈 문자열을 보냈다가 기존 정보가 날아가는 대참사를 막기 위해 모든 값에 조건문 적용 -->
+    <update id="updateMember" parameterType="com.snapway.model.dto.Member">
+        UPDATE member
+        <set>
+            <if test="password != null and password != ''">
+                password = #{password},
+            </if>
+            <if test="username != null and username != ''">
+                username = #{username},
+            </if>
+            <if test="profileImg != null and profileImg != ''">
+                profile_img = #{profileImg},
+            </if>
+            <if test="gender != null">
+                gender = #{gender},
+            </if>
+            <if test="birthday != null">
+                birthday = #{birthday},
+            </if>
+            <if test="style != null">
+                style = #{style},
+            </if>
+        </set>
+        WHERE email = #{email}
+    </update>
+
+    <!-- 5. 회원 탈퇴 (DELETE) -->
+    <delete id="deleteMember" parameterType="string">
+        DELETE FROM member
+        WHERE email = #{email}
+    </delete>
 
 </mapper>
