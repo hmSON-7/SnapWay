@@ -71,28 +71,7 @@ public class SecurityConfig {
 //            
 //        )
     	.csrf(csrf->csrf.disable())
-
-        // CORS
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-        // 폼로그인/Basic 비활성화
-        .formLogin(form -> form.disable())
-        .httpBasic(basic -> basic.disable())
-
-        // 권한 설정
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers(
-                "/api/member/regist",
-                "/api/member/login",
-                "/api/member/logout",
-                "/api/member/check-email",
-                "/api/csrf"
-            ).permitAll()
-            .anyRequest().authenticated()
-        );
-
-<<<<<<< HEAD
-=======
+    	
         // CORS
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
@@ -113,7 +92,6 @@ public class SecurityConfig {
             ).permitAll()
             .anyRequest().authenticated()
         );
->>>>>>> 83baf6d (게시글 조회, 게시글 등록 기능 구현. 확인)
 
         return http.build();
     }
