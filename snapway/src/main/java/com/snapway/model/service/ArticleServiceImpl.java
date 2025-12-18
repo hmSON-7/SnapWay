@@ -11,11 +11,12 @@ import com.snapway.model.mapper.ArticleMapper;
 import com.snapway.util.FileUtil;
 
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 import java.io.*;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class ArticleServiceImpl implements ArticleService {
 	private final ArticleMapper aMapper;
 	private final FileUtil fileUtil;
