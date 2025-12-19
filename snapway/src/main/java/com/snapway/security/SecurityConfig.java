@@ -91,7 +91,7 @@ public class SecurityConfig {
                 "/api/article/**",
                 
                 // 테스트를 위한 임시 개방
-                "/api/trip/analyze"
+                "/api/trip/**"
             ).permitAll()
             .anyRequest().authenticated()
         );

@@ -38,3 +38,4 @@ application-secret.yml
 
 ### Secrets & Local Configuration ###
 src/main/resources/application_db.properties
+src/main/resources/application_ai.properties
