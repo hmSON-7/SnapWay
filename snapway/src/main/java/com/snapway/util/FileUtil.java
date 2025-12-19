@@ -21,7 +21,7 @@ import com.jcraft.jsch.SftpException;
 
 // 로컬 파일 관련 유틸 클래스
 // 외부 설정값이 필요해서 인스턴스로 바꿨습니다.
-@Component
+//@Component
 public class FileUtil {
 	private static final Logger log = LoggerFactory.getLogger(FileUtil.class);
 

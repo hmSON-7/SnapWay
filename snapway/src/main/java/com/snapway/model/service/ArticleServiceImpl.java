@@ -15,8 +15,8 @@ import lombok.RequiredArgsConstructor;
 
 import java.io.*;
 
-@Service
-@RequiredArgsConstructor
+//@Service
+//@RequiredArgsConstructor
 public class ArticleServiceImpl implements ArticleService {
 	private final ArticleMapper aMapper;
 	private final FileUtil fileUtil;
