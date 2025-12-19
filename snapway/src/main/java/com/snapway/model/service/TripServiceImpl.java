@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -62,12 +63,16 @@ public class TripServiceImpl implements TripService {
                 // 4. 촬영 시간 추출 (ExifSubIFDDirectory)
                 ExifSubIFDDirectory exifDirectory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
                 if (exifDirectory != null) {
-                    Date date = exifDirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-                    if (date != null) {
-                        dateTaken = date.toInstant()
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDateTime();
-                    }
+                	String dateString = exifDirectory.getString(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+                	if (dateString != null) {
+                	    // EXIF 날짜 포맷: "yyyy:MM:dd HH:mm:ss"
+                	    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss");
+                	    try {
+                	        dateTaken = LocalDateTime.parse(dateString, formatter);
+                	    } catch (Exception e) {
+                	        log.warn("날짜 파싱 실패, 기본값 사용: {}", dateString);
+                	    }
+                	}
                 }
 
                 // 5. 결과 리스트에 추가

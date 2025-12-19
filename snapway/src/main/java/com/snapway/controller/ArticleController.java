@@ -24,10 +24,10 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
-@RestController
-@RequestMapping("/api/article")
-@RequiredArgsConstructor
+//@Slf4j
+//@RestController
+//@RequestMapping("/api/article")
+//@RequiredArgsConstructor
 public class ArticleController {
 	@Value("${spring.servlet.multipart.max-file-size}")
 	private String maxSize;
