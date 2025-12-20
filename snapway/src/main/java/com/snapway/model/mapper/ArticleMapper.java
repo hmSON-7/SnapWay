@@ -10,4 +10,6 @@ public interface ArticleMapper {
 
 	int createArticle(Article article) throws Exception;
 
+	Article getArticle(String articleId);
+
 }

@@ -26,4 +26,10 @@
 		VALUES(#{title}, #{tags}, #{authorId}, #{content}, #{likes}, NOW())
 		
 	</insert>
+	
+	<!-- 선택된 게시글 조회 -->
+	<select id="getArticle" resultMap="ArticleMap">
+		SELECT * FROM article
+		WHERE article_id = #{articleId}
+	</select>
 </mapper>

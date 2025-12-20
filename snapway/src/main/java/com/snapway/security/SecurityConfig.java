@@ -71,7 +71,7 @@ public class SecurityConfig {
 //            
 //        )
     	.csrf(csrf->csrf.disable())
-
+    	
         // CORS
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
@@ -86,11 +86,12 @@ public class SecurityConfig {
                 "/api/member/login",
                 "/api/member/logout",
                 "/api/member/check-email",
-                "/api/csrf"
+                "/error/**",
+                "/api/csrf",   // csrf 토큰 발급용
+                "/api/article/**"
             ).permitAll()
             .anyRequest().authenticated()
         );
-
 
         return http.build();
     }

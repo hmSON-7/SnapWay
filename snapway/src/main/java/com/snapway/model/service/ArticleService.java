@@ -10,4 +10,6 @@ public interface ArticleService {
 	List<Article> findAll();
 
 	void createArticle(Article article, List<MultipartFile> files) throws Exception;
+
+	Article getArticle(String articleId);
 }
