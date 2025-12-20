@@ -29,14 +29,12 @@ public class ArticleServiceImpl implements ArticleService {
 	@Transactional(rollbackFor = Exception.class)
 	public void createArticle(Article article, List<MultipartFile> files) throws Exception {
 		int result = aMapper.createArticle(article);
-		if (result != 1)
+		if(result != 1) 
 			throw new RuntimeException("게시글 등록 실패");
-
-	}
-
-	@Override
-	public Article getArticle(String articleId) {
-		return aMapper.getArticle(articleId);
+		
+		if(files != null && !files.isEmpty())
+			fileUtil.saveMultipartFile(files, article.getAuthorId(), article.getArticleId());
+		
 	}
 
 }
