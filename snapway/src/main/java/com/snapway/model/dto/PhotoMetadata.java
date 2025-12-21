@@ -12,11 +12,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class PhotoMetadata {
-    private String originalFileName; // 원본 파일명
-    private Double latitude; // 위도
-    private Double longitude; // 경도
-    private LocalDateTime dateTaken; // 촬영 시간
+    private LocalDateTime takenAt; // 촬영 일시
+    private Double latitude;       // 위도
+    private Double longitude;      // 경도
     
-    // 분석 성공 여부 (GPS 정보가 없는 사진일 수도 있음)
-    private boolean hasLocation;
+    /**
+     * 위치 정보가 유효한지 확인합니다.
+     * @return 위도, 경도 정보가 모두 있으면 true
+     */
+    public boolean hasLocation() {
+        return latitude != null && longitude != null && latitude != 0.0 && longitude != 0.0;
+    }
 }

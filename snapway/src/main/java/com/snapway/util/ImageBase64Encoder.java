@@ -6,10 +6,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Base64;
 
-//이 유틸은 이미지 파일을 base64코드로 변환해 String으로 반환하는 코드입니다.
-public final class ImageBase64Encoder {
+import org.springframework.stereotype.Component;
 
-    private ImageBase64Encoder() {}
+import lombok.extern.slf4j.Slf4j;
+
+//이 유틸은 이미지 파일을 base64코드로 변환해 String으로 반환하는 코드입니다.
+@Slf4j
+@Component
+public final class ImageBase64Encoder {
 
     public static String encode(String filePath) {
         File file = new File(filePath);

@@ -77,11 +77,9 @@ public class TripServiceImpl implements TripService {
 
                 // 5. 결과 리스트에 추가
                 PhotoMetadata meta = PhotoMetadata.builder()
-                        .originalFileName(file.getOriginalFilename())
+                		.takenAt(dateTaken)
                         .latitude(latitude)
                         .longitude(longitude)
-                        .dateTaken(dateTaken)
-                        .hasLocation(hasLocation)
                         .build();
                 
                 metadataList.add(meta);
@@ -93,9 +91,7 @@ public class TripServiceImpl implements TripService {
                 log.error("메타데이터 추출 실패: {}", file.getOriginalFilename(), e);
                 // 실패하더라도 에러를 던지지 않고 기본값(위치 없음)으로 리스트에 포함
                 metadataList.add(PhotoMetadata.builder()
-                        .originalFileName(file.getOriginalFilename())
-                        .dateTaken(LocalDateTime.now())
-                        .hasLocation(false)
+                        .takenAt(LocalDateTime.now())
                         .build());
             }
         }
