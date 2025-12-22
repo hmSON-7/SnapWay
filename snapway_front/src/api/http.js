@@ -1,7 +1,7 @@
 // src/api/http.js
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 // 일반 API 호출용
 const http = axios.create({
