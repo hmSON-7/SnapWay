@@ -1,0 +1,44 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### application-secret.yml ###
+application-secret.yml
+
+### Secrets & Local Configuration ###
+src/main/resources/application_db.properties
+src/main/resources/application_ai.properties
+
+### Uploaded Images ###
+# 로컬 개발 시 생성되는 이미지 저장소 무시
+src/main/resources/static/img/
