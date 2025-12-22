@@ -56,14 +56,14 @@ public class ArticleController {
 	 * 사용자가 최종적으로 게시글 등록을 눌렀을 때 작동하는 메소드
 	 */
 	@PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<Map<String, String>> createArticle(
+	public ResponseEntity<Map<String, String>> saveArticle(
 			@RequestPart("article") Article article,
 			@RequestPart(value = "files", required = false) List<MultipartFile> files) {
 		try {
 
 			// TODO: 나중에 엑세스 토큰 구현되면 거기서 작성자 정보 추출
 			article.setAuthorId("1");
-			aService.createArticle(article, files);
+			aService.saveArticle(article, files);
 			return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 등록되었습니다"));
 		} catch (Exception e) {
 			log.error("게시글 등록 오류", e);
@@ -93,7 +93,7 @@ public class ArticleController {
 	 */
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, ?>> uploadImage(@RequestPart("file") MultipartFile file,
-			HttpServletRequest request, @RequestParam String articleId)
+			HttpServletRequest request)
 			throws IllegalStateException, IOException {
 		if (file == null || file.isEmpty()) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -103,8 +103,8 @@ public class ArticleController {
 		String userId = "tempUser"; // TODO: 나중에 accessToken에서 추출하도록 변경
 		String fileName = UUID.randomUUID().toString() + file.getOriginalFilename();
 
-		// 경로예시 c:user\\uploads\\userId\articleId\fileName
-		Path savePath = Paths.get(basePath, userId, articleId);
+		// 경로예시 c:user\\uploads\\userId\temp\fileName
+		Path savePath = Paths.get(basePath, userId, "temp");
 
 		// 이미지를 저장할 디렉토리를 생성
 		Files.createDirectories(savePath);
@@ -115,7 +115,7 @@ public class ArticleController {
 		// 에디터에게 접근 가능한 이미지url을 구성
 		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":"
 				+ request.getServerPort() + request.getContextPath();
-		String fileUrl = baseUrl + "/files/" + userId + articleId + "/" + fileName;
+		String fileUrl = baseUrl + "/files/" + userId + "/" +  "temp" + "/" + fileName;
 
 		return ResponseEntity.status(HttpStatus.OK).body(Map.of("fileUrl", fileUrl));
 	}

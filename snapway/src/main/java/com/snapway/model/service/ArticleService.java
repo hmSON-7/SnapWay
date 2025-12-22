@@ -9,7 +9,7 @@ import com.snapway.model.dto.Article;
 public interface ArticleService {
 	List<Article> findAll();
 
-	void createArticle(Article article, List<MultipartFile> files) throws Exception;
+	void saveArticle(Article article, List<MultipartFile> files) throws Exception;
 
 	Article getArticle(String articleId);
 }
