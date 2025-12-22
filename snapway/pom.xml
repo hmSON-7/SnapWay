@@ -27,9 +27,11 @@
 		<tag />
 		<url />
 	</scm>
+	
 	<properties>
 		<java.version>17</java.version>
 	</properties>
+
 	<dependencies>
 		<!-- 1. Web (REST API) -->
 		<dependency>
@@ -92,13 +94,13 @@
 			<version>2.19.0</version>
 		</dependency>
 
-		<!-- 8. WebFlux (Gemini API 호출용 WebClient 사용) -->
+		<!-- 8. WebFlux (Gemini API 호출 및 비동기 처리용) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 
-		<!-- SFTP 의존성 -->
+		<!-- 9. SFTP 의존성 -->
 		<dependency>
 			<groupId>com.jcraft</groupId>
 			<artifactId>jsch</artifactId>
@@ -129,7 +131,6 @@
 						<exclude>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
-
 						</exclude>
 					</excludes>
 				</configuration>
