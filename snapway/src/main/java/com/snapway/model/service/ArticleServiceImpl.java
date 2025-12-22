@@ -13,14 +13,15 @@ import com.snapway.model.mapper.ArticleMapper;
 import com.snapway.util.FileUtil;
 
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-@Service
-@AllArgsConstructor
+//@Service
+//@RequiredArgsConstructor
 public class ArticleServiceImpl implements ArticleService {
 	private final ArticleMapper aMapper;
 	private final FileUtil fileUtil;
