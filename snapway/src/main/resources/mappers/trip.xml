@@ -12,7 +12,7 @@
         <id column="trip_id" property="tripId"/>
         <result column="title" property="title"/>
         <result column="tags" property="tags"/>
-        <result column="id" property="memberId"/>
+        <result column="id" property="memberId"/> <!-- DB 컬럼 id를 DTO memberId에 매핑 -->
         <result column="uploaded_at" property="uploadedAt"/>
         <result column="start_date" property="startDate"/>
         <result column="end_date" property="endDate"/>
@@ -50,7 +50,9 @@
         <result column="latitude" property="latitude"/>
         <result column="longitude" property="longitude"/>
         <result column="place_name" property="placeName"/>
-        <result column="ai_content" property="aiContent"/>
+        
+        <!-- [수정됨] DTO 필드명(aiContent, visitedDate)과 일치시킴 -->
+        <result column="ai_content" property="aiContent"/> 
         <result column="visited_date" property="visitedDate"/>
     </resultMap>
 
@@ -84,9 +86,9 @@
 
     <insert id="insertTripPhoto" parameterType="com.snapway.model.dto.TripPhoto">
         INSERT INTO trip_photo (
-            record_id, file_path, photo_name, caption
+            record_id, file_path, photo_name, caption, uploaded_at
         ) VALUES (
-            #{recordId}, #{filePath}, #{photoName}, #{caption}
+            #{recordId}, #{filePath}, #{photoName}, #{caption}, NOW()
         )
     </insert>
 

@@ -16,4 +16,19 @@ public interface TripService {
      */
     Trip createAutoTrip(int memberId, String title, List<MultipartFile> files) throws Exception;
     
+    /**
+     * 특정 사용자의 여행 기록 목록을 조회합니다.
+     * @param memberId 사용자 ID
+     * @return 여행 목록 (요약 정보)
+     */
+    List<Trip> getMyTripList(int memberId) throws Exception;
+
+    /**
+     * 특정 여행 기록의 상세 정보를 조회합니다.
+     * (Trip -> Records -> Photos 계층 구조 포함)
+     * @param tripId 여행 ID
+     * @return 여행 상세 정보
+     */
+    Trip getTripDetail(int tripId) throws Exception;
+    
 }
