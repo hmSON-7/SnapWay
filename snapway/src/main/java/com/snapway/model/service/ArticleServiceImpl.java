@@ -20,11 +20,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-//@Service
-//@RequiredArgsConstructor
+@Service
+@RequiredArgsConstructor
 public class ArticleServiceImpl implements ArticleService {
 	private final ArticleMapper aMapper;
-	private final FileUtil fileUtil;
 	
 	@Value("${spring.servlet.multipart.location}")
 	private String basePath;
@@ -69,7 +68,7 @@ public class ArticleServiceImpl implements ArticleService {
 	}
 
 	@Override
-	public Article getArticle(String articleId) {
+	public Article getArticle(String articleId) throws Exception {
 		return aMapper.getArticle(articleId);
 	}
 

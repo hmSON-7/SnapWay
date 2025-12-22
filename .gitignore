@@ -22,6 +22,7 @@ pnpm-debug.log*
 .env.*.local
 application-secret.yml
 application_db.properties
+application_ai.properties
 
 # ===== OS =====
 .DS_Store
