@@ -2,3 +2,4 @@
 node_-moudles
 .env
 .env.*.local
+.vscode/
