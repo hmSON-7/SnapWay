@@ -11,6 +11,6 @@ public interface ArticleMapper {
 
 	List<Article> findAll();
 
-	int createArticle(Article article) throws Exception;
+	int saveArticle(Article article) throws Exception;
 
 }

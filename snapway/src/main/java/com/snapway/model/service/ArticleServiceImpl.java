@@ -1,7 +1,9 @@
 package com.snapway.model.service;
 
 import java.util.*;
+import java.util.stream.Stream;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,12 +16,18 @@ import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 //@Service
 //@RequiredArgsConstructor
 public class ArticleServiceImpl implements ArticleService {
 	private final ArticleMapper aMapper;
 	private final FileUtil fileUtil;
+	
+	@Value("${spring.servlet.multipart.location}")
+	private String basePath;
 
 	@Override
 	public List<Article> findAll() {
@@ -28,14 +36,41 @@ public class ArticleServiceImpl implements ArticleService {
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public void createArticle(Article article, List<MultipartFile> files) throws Exception {
-		int result = aMapper.createArticle(article);
-		if(result != 1) 
+	public void saveArticle(Article article, List<MultipartFile> files) throws Exception {
+		int result = aMapper.saveArticle(article);
+		if (result != 1)
 			throw new RuntimeException("게시글 등록 실패");
 		
-		if(files != null && !files.isEmpty())
-			fileUtil.saveMultipartFile(files, article.getAuthorId(), article.getArticleId());
+		String userId = article.getAuthorId();
+		long articleId = article.getArticleId();
 		
+		
+		// 이미지 파일을 temp에서 articleId폴더로 이동
+		Path tempDir = Paths.get(basePath, userId, "temp");
+		Path articleDir = Paths.get(basePath, userId, String.valueOf(articleId));
+		
+		// 저장할 디렉토리 생성
+		Files.createDirectories(articleDir);
+		
+		// temp 디렉토리 안의 이미지 파일을 articleDir로 이동
+		try(Stream<Path> stream = Files.list(tempDir)) {
+			stream
+				.filter(Files::isRegularFile)
+				.forEach(source->{ // 일반 파일이 맞으면 그 파일을 이동시킨다.
+					Path target = articleDir.resolve(source.getFileName());
+					try {
+						Files.move(source, target);
+					} catch(Exception e) {
+						throw new RuntimeException("이미지 이동 실패:" + source, e);
+					}
+				});
+		}
+
+	}
+
+	@Override
+	public Article getArticle(String articleId) {
+		return aMapper.getArticle(articleId);
 	}
 
 }

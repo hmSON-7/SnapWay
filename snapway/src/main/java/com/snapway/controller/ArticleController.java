@@ -82,4 +82,57 @@ public class ArticleController {
 		
 	}
 
+
+	/*
+	 * 클라이언트의 에디터가 보낸 이미지를 저장하고 그 url을 다시 에디터에 반환
+	 */
+	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<Map<String, ?>> uploadImage(@RequestPart("file") MultipartFile file,
+			HttpServletRequest request)
+			throws IllegalStateException, IOException {
+		if (file == null || file.isEmpty()) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(Map.of("message", "업로드 실패 \n파일이 없습니다"));
+		}
+
+		String userId = "tempUser"; // TODO: 나중에 accessToken에서 추출하도록 변경
+		String fileName = UUID.randomUUID().toString() + file.getOriginalFilename();
+
+		// 경로예시 c:user\\uploads\\userId\temp\fileName
+		Path savePath = Paths.get(basePath, userId, "temp");
+
+		// 이미지를 저장할 디렉토리를 생성
+		Files.createDirectories(savePath);
+
+		Path target = savePath.resolve(fileName);
+		file.transferTo(target);
+
+		// 에디터에게 접근 가능한 이미지url을 구성
+		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":"
+				+ request.getServerPort() + request.getContextPath();
+		String fileUrl = baseUrl + "/files/" + userId + "/" +  "temp" + "/" + fileName;
+
+		return ResponseEntity.status(HttpStatus.OK).body(Map.of("fileUrl", fileUrl));
+	}
+
+	/*
+	 * 게시글을 보여주는 메소드
+	 */
+	@GetMapping("/article")
+	public ResponseEntity<Map<String, ?>> getArticle(@RequestParam String articleId) {
+		try {
+			Article article = aService.getArticle(articleId);
+
+			if (article == null) {
+				return ResponseEntity.status(HttpStatus.NOT_FOUND)
+						.body(Map.of("message", "해당 게시글이 존재하지 않습니다."));
+			}
+
+			return ResponseEntity.status(HttpStatus.OK).body(Map.of("article", article));
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("message", "서버 오류"));
+		}
+	}
+
 }

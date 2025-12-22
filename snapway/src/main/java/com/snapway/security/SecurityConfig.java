@@ -71,7 +71,7 @@ public class SecurityConfig {
 //            
 //        )
     	.csrf(csrf->csrf.disable())
-    	
+
         // CORS
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
@@ -95,6 +95,7 @@ public class SecurityConfig {
             ).permitAll()
             .anyRequest().authenticated()
         );
+
 
         return http.build();
     }
