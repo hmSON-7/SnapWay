@@ -1,4 +1,28 @@
-/.metadata/
-node_-moudles
+# ===== IDE / Editor =====
+.vscode/
+.settings/
+.metadata/
+.idea/
+*.iml
+
+# ===== Java / Spring build outputs =====
+**/target/
+*.class
+*.log
+
+# ===== Node / Frontend =====
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Environment / Secret (LOCAL ONLY) =====
 .env
 .env.*.local
+application-secret.yml
+application_db.properties
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
