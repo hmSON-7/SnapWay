@@ -1,5 +1,4 @@
-// src/main.js
-import { createApp } from "vue";
+﻿import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router";
 import { createPinia } from "pinia";
@@ -9,34 +8,53 @@ import http, { csrfClient } from "@/api/http.js";
 const app = createApp(App);
 const pinia = createPinia();
 
-// csrf 사용시 활성화
-// const initCsrf = async () => {
-//   // 실제 요청: POST http://localhost:8080/api/csrf
-//   await csrfClient.post("/api/csrf");
-// };
+// csrf 사용예시
+const initCsrf = async () => {
+  await csrfClient.post("/api/csrf");
+};
 
-const loadKakaoMap = () => {
+// Kakao 지도 SDK 로드가 끝나야 window.kakao가 준비됨
+const loadKakaoMap = () =>
+  new Promise((resolve, reject) => {
     const apiKey = import.meta.env.VITE_KEY_KAKAO_JAVASCRIPT;
-    
+
     if (!apiKey) {
-        console.error("Kakao Map API Key가 설정되지 않았습니다.");
-        return;
+      console.error("Kakao Map API Key가 설정되지 않았습니다.");
+      reject(new Error("Kakao Map API Key missing"));
+      return;
+    }
+
+    // 이미 로드된 경우 바로 완료
+    if (window.kakao && window.kakao.maps) {
+      resolve();
+      return;
     }
 
     const script = document.createElement("script");
-    // libraries 파라미터 필수 (services: 장소검색, clusterer: 마커클러스터)
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false&libraries=services,clusterer,drawing`;
+    const src =
+      "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" +
+      apiKey +
+      "&autoload=false&libraries=services,clusterer,drawing";
+    script.src = src;
     script.async = true;
-    
-    // 스크립트 로드 완료 후 카카오맵 로드
     script.onload = () => {
-        window.kakao.maps.load(() => {
+      window.kakao.maps.load(() => {
         console.log("Kakao Map Loaded");
-        });
+        resolve();
+      });
     };
-
+    script.onerror = (err) => {
+      console.error("Kakao Map script 로딩 실패", err);
+      reject(err);
+    };
     document.head.appendChild(script);
-};
+  });
 
 // await initCsrf();
-app.use(router).use(pinia).mount("#app");
+loadKakaoMap()
+  .catch(() => {
+    // 지도 스크립트가 없어도 앱은 마운트
+  })
+  .finally(() => {
+    app.use(router).use(pinia).mount("#app");
+  });
