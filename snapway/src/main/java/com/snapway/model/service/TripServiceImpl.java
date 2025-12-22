@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -24,6 +25,7 @@ import com.snapway.model.mapper.TripMapper;
 import com.snapway.util.FileUtil;
 import com.snapway.util.ImageBase64Encoder;
 import com.snapway.util.MetadataUtil;
+import com.snapway.util.MetadataUtil.PhotoWithFile;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +42,6 @@ public class TripServiceImpl implements TripService {
     private final ObjectMapper objectMapper;
     private final TripMapper tripMapper;
 
-    // private final TripMapper tripMapper; // MyBatis 매퍼
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Trip createAutoTrip(int memberId, String title, List<MultipartFile> files) throws Exception {
@@ -51,48 +51,45 @@ public class TripServiceImpl implements TripService {
 
         log.info("=== 1단계: 개별 사진 분석 시작 (총 {}장) ===", files.size());
         
+        List<PhotoWithFile> sortedPhotos = metadataUtil.extractAndSort(files);
+        
         // 동시성 처리를 위한 안전한 리스트 사용
-        List<PhotoAnalysisResult> analysisResults = new CopyOnWriteArrayList<>();
+        log.info("=== 2단계: 개별 사진 AI 분석 (총 {}장) ===", sortedPhotos.size());
+        
+        // 2. 정렬된 순서를 유지하며 병렬 처리로 AI 분석 요청
+        // parallelStream()을 사용하더라도 collect(Collectors.toList())는 원본 리스트의 순서(시간순)를 보장합니다.
+        List<PhotoAnalysisResult> analysisResults = sortedPhotos.parallelStream()
+            .map(photoWithFile -> {
+                try {
+                    MultipartFile file = photoWithFile.getFile();
+                    PhotoMetadata metadata = photoWithFile.getMetadata();
+                    
+                    // Base64 변환
+                    String base64 = imageBase64Encoder.encode(file);
+                    if (base64 == null) return null;
 
-        // 1. [병렬 처리] 각 사진을 하나씩 AI에게 보내서 묘사(Description)를 받아옴
-        // parallelStream을 사용하여 여러 사진을 동시에 분석 (속도 향상)
-        files.parallelStream().forEach(file -> {
-            try {
-                // 1-1. 메타데이터 및 Base64 준비
-                PhotoMetadata metadata = metadataUtil.extractMetadata(file);
-                String base64 = imageBase64Encoder.encode(file);
-                
-                if (base64 == null) return; // 변환 실패 시 건너뜀
-
-                // 1-2. 개별 사진 분석 요청 (이미지 1장이라 가벼움)
-                String analysisPrompt = """
-                        Analyze this photo for a travel blog. 
-                        Describe the location (landmark), atmosphere, time of day, and what is happening in 1-2 sentences.
-                        Start the response directly with the description.
-                        """;
-                
-                // 이미지를 1장만 포함하여 전송
-                String description = aiService.generateContent(analysisPrompt, List.of(base64));
-                
-                // 1-3. 결과 저장
-                // 원본 리스트의 인덱스를 추적하기 위해 indexOf 등을 쓰지 않고, 별도 로직이 필요하나
-                // 여기서는 파일 객체 자체를 키로 쓰거나 분석 결과에 포함시킴
-                analysisResults.add(new PhotoAnalysisResult(file, metadata, description));
-                
-            } catch (Exception e) {
-                log.error("사진 분석 실패 (파일명: {}): {}", file.getOriginalFilename(), e.getMessage());
-                // 실패해도 다른 사진들은 계속 진행
-            }
-        });
+                    // AI 분석 요청 (개별 사진 묘사)
+                    String analysisPrompt = """
+                            Analyze this photo for a travel blog. 
+                            Describe the location (landmark), atmosphere, time of day, and what is happening in 1-2 sentences.
+                            Start the response directly with the description.
+                            """;
+                    // TODO: 추후 여기에 Reverse Geocoding으로 얻은 주소 정보를 프롬프트에 추가하면 정확도 향상 가능
+                    
+                    String description = aiService.generateContent(analysisPrompt, List.of(base64));
+                    
+                    return new PhotoAnalysisResult(file, metadata, description);
+                } catch (Exception e) {
+                    log.error("사진 분석 실패 (파일명: {}): {}", photoWithFile.getFile().getOriginalFilename(), e.getMessage());
+                    return null;
+                }
+            })
+            .filter(Objects::nonNull) // 실패한 건 제외
+            .collect(Collectors.toList());
 
         if (analysisResults.isEmpty()) {
             throw new RuntimeException("모든 사진 분석에 실패했습니다.");
         }
-
-        // 2. 시간 순서대로 정렬 (여행기는 시간 순이므로)
-        analysisResults.sort(Comparator.comparing(
-            r -> r.metadata.getTakenAt() != null ? r.metadata.getTakenAt() : LocalDateTime.now()
-        ));
 
         // 날짜 범위 계산
         LocalDate minDate = analysisResults.get(0).metadata.getTakenAt() != null ? 
@@ -141,8 +138,10 @@ public class TripServiceImpl implements TripService {
                 .visibility("PUBLIC")
                 .build();
         
-        // tripMapper.insertTrip(trip);
-        int tripId = 1; // 임시 ID
+        // DB에 Trip 저장 (MyBatis의 useGeneratedKeys로 tripId가 객체에 주입됨)
+        tripMapper.insertTrip(trip);
+        int tripId = trip.getTripId();
+        log.info("여행 DB 생성 완료: tripId={}", tripId);
 
         // 6. 파일 저장 및 본문 태그 치환
         List<TripPhoto> tripPhotos = new ArrayList<>();
@@ -168,14 +167,26 @@ public class TripServiceImpl implements TripService {
                     .build());
         }
 
+        // 7. TripRecord (여행 상세 기록) DB 저장
         TripRecord record = TripRecord.builder()
                 .tripId(tripId)
                 .placeName(title)
                 .aiContent(generatedContent)
-                .visitedDate(analysisResults.get(0).metadata.getTakenAt())
-                .photos(tripPhotos)
+                .visitedDate(analysisResults.get(0).metadata().getTakenAt())
                 .build();
         
+        // DB에 Record 저장 (recordId 생성됨)
+        tripMapper.insertTripRecord(record);
+        int recordId = record.getRecordId();
+        
+        // 8. TripPhoto DB 저장 (recordId 연결)
+        for (TripPhoto photo : tripPhotos) {
+            photo.setRecordId(recordId);
+            tripMapper.insertTripPhoto(photo);
+        }
+        
+        // 반환 객체 구성
+        record.setPhotos(tripPhotos);
         trip.setRecords(List.of(record));
         
         return trip;
