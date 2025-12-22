@@ -12,5 +12,7 @@ public interface ArticleMapper {
 	List<Article> findAll();
 
 	int saveArticle(Article article) throws Exception;
+	
+	Article getArticle(String articleId) throws Exception;
 
 }
