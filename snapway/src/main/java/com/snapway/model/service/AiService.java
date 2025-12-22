@@ -1,5 +1,7 @@
 package com.snapway.model.service;
 
+import java.util.List;
+
 public interface AiService {
 	
     /**
@@ -8,4 +10,6 @@ public interface AiService {
      * @return AI 응답 텍스트
      */
     String generateContent(String prompt);
+    
+    String generateContent(String prompt, List<String> base64Images);
 }
