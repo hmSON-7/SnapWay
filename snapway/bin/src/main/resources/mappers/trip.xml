@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.snapway.model.mapper.TripMapper">
+
+    <!-- ======================= -->
+    <!-- 1. Trip (여행 폴더)     -->
+    <!-- ======================= -->
+    
+    <resultMap type="com.snapway.model.dto.Trip" id="tripMap">
+        <id column="trip_id" property="tripId"/>
+        <result column="title" property="title"/>
+        <result column="tags" property="tags"/>
+        <result column="id" property="memberId"/>
+        <result column="uploaded_at" property="uploadedAt"/>
+        <result column="start_date" property="startDate"/>
+        <result column="end_date" property="endDate"/>
+        <result column="visibility" property="visibility"/>
+    </resultMap>
+
+    <insert id="insertTrip" parameterType="com.snapway.model.dto.Trip" 
+            useGeneratedKeys="true" keyProperty="tripId">
+        INSERT INTO trip (
+            title, tags, id, uploaded_at, start_date, end_date, visibility
+        ) VALUES (
+            #{title}, #{tags}, #{memberId}, now(), #{startDate}, #{endDate}, #{visibility}
+        )
+    </insert>
+
+    <select id="selectTripListByMemberId" parameterType="int" resultMap="tripMap">
+        SELECT * FROM trip
+        WHERE id = #{memberId}
+        ORDER BY start_date DESC, trip_id DESC
+    </select>
+
+    <select id="selectTripById" parameterType="int" resultMap="tripMap">
+        SELECT * FROM trip
+        WHERE trip_id = #{tripId}
+    </select>
+
+
+    <!-- ======================= -->
+    <!-- 2. TripRecord (기록)    -->
+    <!-- ======================= -->
+
+    <resultMap type="com.snapway.model.dto.TripRecord" id="recordMap">
+        <id column="record_id" property="recordId"/>
+        <result column="trip_id" property="tripId"/>
+        <result column="latitude" property="latitude"/>
+        <result column="longitude" property="longitude"/>
+        <result column="place_name" property="placeName"/>
+        <result column="ai_content" property="aiContent"/>
+        <result column="visited_date" property="visitedDate"/>
+    </resultMap>
+
+    <insert id="insertTripRecord" parameterType="com.snapway.model.dto.TripRecord"
+            useGeneratedKeys="true" keyProperty="recordId">
+        INSERT INTO trip_record (
+            trip_id, latitude, longitude, place_name, ai_content, visited_date
+        ) VALUES (
+            #{tripId}, #{latitude}, #{longitude}, #{placeName}, #{aiContent}, #{visitedDate}
+        )
+    </insert>
+
+    <select id="selectRecordsByTripId" parameterType="int" resultMap="recordMap">
+        SELECT * FROM trip_record
+        WHERE trip_id = #{tripId}
+        ORDER BY visited_date ASC
+    </select>
+
+
+    <!-- ======================= -->
+    <!-- 3. TripPhoto (사진)     -->
+    <!-- ======================= -->
+
+    <resultMap type="com.snapway.model.dto.TripPhoto" id="photoMap">
+        <id column="photo_code" property="photoCode"/>
+        <result column="record_id" property="recordId"/>
+        <result column="file_path" property="filePath"/>
+        <result column="photo_name" property="photoName"/>
+        <result column="caption" property="caption"/>
+    </resultMap>
+
+    <insert id="insertTripPhoto" parameterType="com.snapway.model.dto.TripPhoto">
+        INSERT INTO trip_photo (
+            record_id, file_path, photo_name, caption
+        ) VALUES (
+            #{recordId}, #{filePath}, #{photoName}, #{caption}
+        )
+    </insert>
+
+    <select id="selectPhotosByRecordId" parameterType="int" resultMap="photoMap">
+        SELECT * FROM trip_photo
+        WHERE record_id = #{recordId}
+    </select>
+
+</mapper>
