@@ -20,6 +20,7 @@ import com.snapway.model.dto.PhotoMetadata;
 import com.snapway.model.dto.Trip;
 import com.snapway.model.dto.TripPhoto;
 import com.snapway.model.dto.TripRecord;
+import com.snapway.model.mapper.TripMapper;
 import com.snapway.util.FileUtil;
 import com.snapway.util.ImageBase64Encoder;
 import com.snapway.util.MetadataUtil;
@@ -37,11 +38,12 @@ public class TripServiceImpl implements TripService {
     private final ImageBase64Encoder imageBase64Encoder;
     private final MetadataUtil metadataUtil;
     private final ObjectMapper objectMapper;
+    private final TripMapper tripMapper;
 
     // private final TripMapper tripMapper; // MyBatis 매퍼
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Trip createAutoTrip(int memberId, String title, List<MultipartFile> files) throws Exception {
         if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("사진 파일이 없습니다.");
@@ -179,6 +181,35 @@ public class TripServiceImpl implements TripService {
         return trip;
     }
 
+    // --- 2. 내 여행 목록 조회 ---
+    @Override
+    public List<Trip> getMyTripList(int memberId) throws Exception {
+    	return tripMapper.selectTripListByMemberId(memberId);
+    }
+    
+    // ---- 3. 여행 상세 조회 (계층 구조 조립) ---
+    @Override
+    public Trip getTripDetail(int tripId) throws Exception {
+    	// (1) 여행 기본 정보 조회
+    	Trip trip = tripMapper.selectTripById(tripId);
+    	if(trip == null) {
+    		throw new RuntimeException("해당 기록을 찾을 수 없습니다.");
+    	}
+    	
+    	// (2) 해당 여행의 세부 기록(Records) 조회
+    	List<TripRecord> records = tripMapper.selectRecordsByTripId(tripId);
+    	
+    	// (3) 각 기록별 사진(Photos) 조회 및 조립
+    	for(TripRecord record : records) {
+    		List<TripPhoto> photos = tripMapper.selectPhotosByRecordId(record.getRecordId());
+    		record.setPhotos(photos);
+    	}
+    	
+    	// (4) 최종 조립
+    	trip.setRecords(records);
+    	return trip;
+    }
+    
     private String parseAiResponse(String jsonResponse) {
         try {
             JsonNode root = objectMapper.readTree(jsonResponse);
@@ -194,4 +225,5 @@ public class TripServiceImpl implements TripService {
 
     // 내부 데이터 클래스
     private record PhotoAnalysisResult(MultipartFile file, PhotoMetadata metadata, String description) {}
+
 }
