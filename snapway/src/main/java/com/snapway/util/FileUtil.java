@@ -1,278 +1,170 @@
 package com.snapway.util;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
-import java.util.Properties;
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.SftpException;
+import lombok.extern.slf4j.Slf4j;
 
-// 로컬 파일 관련 유틸 클래스
-// 외부 설정값이 필요해서 인스턴스로 바꿨습니다.
-//@Component
+/**
+ * 로컬 파일 시스템을 이용한 파일 저장 유틸리티
+ * 개발 환경: 프로젝트 내부 resources/static/img 경로 사용
+ * 배포 환경: 외부 절대 경로 사용 가능 (설정 파일 제어)
+ */
+@Slf4j
+@Component
 public class FileUtil {
-	private static final Logger log = LoggerFactory.getLogger(FileUtil.class);
 
-	@Value("${sftp.host}")
-    private String host;
-    
-    @Value("${sftp.port}")
-    private int port;
-    
-    @Value("${sftp.username}")
-    private String username;
-    
-    @Value("${sftp.password}")
-    private String password;
-    
-    @Value("${sftp.basepath}")
-    private String basePath;
+    // application.properties에 'file.upload-dir' 설정이 있으면 그 경로를 사용(배포용)
+    // 없으면 비워둠(개발용 자동 경로 탐색)
+    // 예: file.upload-dir=C:/server/uploads/
+    @Value("${file.upload-dir:}")
+    private String configuredUploadPath;
 
-    /**
-     * 회원가입 시 사용자의 파일 저장을 위한 디렉토리를 라즈베리파이에 생성.
-     * 
-     * @param username: 생성할 디렉토리명이 될 사용자 이름
-     * @throws Exception SFTP 연결 또는 디렉토리 생성 실패 시
-     */
-    public void createUserDirectory(int username) throws Exception {
-        JSch jsch = new JSch();
-        Session session = null;
-        ChannelSftp channelSftp = null;
-        
+    private Path rootLocation;
+    private final String STATIC_IMG_PATH = "img"; // 웹 접근시 URL prefix
+
+    @PostConstruct
+    public void init() {
+        if (configuredUploadPath != null && !configuredUploadPath.isEmpty()) {
+            // [배포 환경] 설정 파일에 지정된 외부 경로 사용
+            this.rootLocation = Paths.get(configuredUploadPath);
+            log.info("배포 환경 파일 저장 경로 설정됨: {}", this.rootLocation.toAbsolutePath());
+        } else {
+            // [개발 환경] 프로젝트 내부 src/main/resources/static/img 자동 탐색
+            // 주의: 이클립스/IntelliJ에서 실행 시 target 폴더와 싱크가 맞아야 바로 보일 수 있음
+            String projectPath = System.getProperty("user.dir");
+            // Maven 프로젝트 표준 구조 기준
+            this.rootLocation = Paths.get(projectPath, "src", "main", "resources", "static", STATIC_IMG_PATH);
+            log.info("개발 환경 파일 저장 경로 설정됨: {}", this.rootLocation.toAbsolutePath());
+        }
+
         try {
-            // 세션 생성 및 연결
-            session = jsch.getSession(this.username, host, port);
-            session.setPassword(password);
-            
-            Properties config = new Properties();
-            config.put("StrictHostKeyChecking", "no");
-            session.setConfig(config);
-            session.connect();
-            
-            // SFTP 채널 열기
-            channelSftp = (ChannelSftp) session.openChannel("sftp");
-            channelSftp.connect();
-            
-            // 사용자 디렉토리 생성
-            String userPath = basePath + username + "/";
-            createDirectories(channelSftp, userPath);
-            
-            log.info("사용자 디렉토리 생성 성공: {}", userPath);
-            
-        } finally {
-            if(channelSftp != null && channelSftp.isConnected())
-                channelSftp.disconnect();
-            if(session != null && session.isConnected())
-                session.disconnect();
+            if (!Files.exists(rootLocation)) {
+                Files.createDirectories(rootLocation);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("파일 저장소 초기화 실패!", e);
         }
     }
 
-	
-	/*
-	 * 게시글의 이미지 파일을 라즈베리파이에 저장.
-	 */
-	public void saveMultipartFile(List<MultipartFile> files, String userId, long articleId) throws Exception {
-		JSch jsch = new JSch();
-		Session session = null;
-		ChannelSftp channelSftp = null;
-		
-		try {
-			// 세션 생성 및 연결
-			session = jsch.getSession(username, host, port);
-			session.setPassword(password);
-			
-			Properties config = new Properties();
-			config.put("StrictHostKeyChecking", "no");
-			session.setConfig(config);
-			session.connect();
-			
-			// SFTP 채널 열기
-			channelSftp = (ChannelSftp) session.openChannel("sftp");
-			channelSftp.connect();
-			
-			// 디렉토리 생성(게시글 id별로 생성함)
-			String remotePath = basePath + userId + "/" + articleId + "/";
-			createDirectories(channelSftp, remotePath);
-			
-			// 파일 업로드
-			for(MultipartFile file : files) {
-				if(file.getSize() > 0) {
-					String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-					channelSftp.put(file.getInputStream(), remotePath + fileName);
-					log.info("파일 업로드 성공: {}", fileName);
-				}
-			}
-		} finally {
-			if(channelSftp != null && channelSftp.isConnected())
-				channelSftp.disconnect();
-			if(session != null && session.isConnected())
-				session.disconnect();
-		}
-	}
-	
-	private void createDirectories(ChannelSftp channelSftp, String path) throws SftpException{
-		String[] dirs = path.split("/");
-		String currentPath = "";
-		
-		for(String dir : dirs) {
-			if(dir.isEmpty())
-				continue;
-			currentPath += "/" + dir;
-			
-			try {
-				channelSftp.cd(currentPath);
-			} catch (SftpException e) { // 해당 경로가 없으면
-				channelSftp.mkdir(currentPath); // 디렉토리를 만들고
-				channelSftp.cd(currentPath); // 만든 디렉토리로 이동
-			}
-		}
-	}
+    /**
+     * 파일을 구조화된 경로에 저장합니다.
+     * 저장 경로: root/{username}/{category}/{subId}/uuid_filename
+     * * @param file 업로드할 파일
+     * @param username 사용자 ID
+     * @param category 카테고리 (article, trip 등)
+     * @param subId 게시글ID 또는 여행ID
+     * @return 웹에서 접근 가능한 상대 경로 문자열 (예: /img/user1/trip/10/abc.jpg)
+     */
+    public String saveFile(MultipartFile file, String username, String category, String subId) throws IOException {
+        if (file.isEmpty()) {
+            throw new IOException("빈 파일은 저장할 수 없습니다.");
+        }
 
-	/**
-	 * 주어진 경로의 로컬 파일을 File 객체로 반환합니다. 파일이 없거나 디렉터리면 IOException을 던집니다.
-	 * @param path: 불러올 파일이 위치한 로컬 스토리지의 경로
-	 */
-	public static File getFile(String path) throws IOException {
-		File file = new File(path);
+        // 1. 저장할 세부 디렉토리 생성
+        Path targetDir = this.rootLocation.resolve(Paths.get(username, category, subId));
+        if (!Files.exists(targetDir)) {
+            Files.createDirectories(targetDir);
+        }
 
-		if (!file.exists()) {
-			throw new IOException("파일이 존재하지 않습니다: " + path);
-		}
+        // 2. 파일명 중복 방지 처리
+        String originalFilename = file.getOriginalFilename();
+        String uuid = UUID.randomUUID().toString();
+        String extension = "";
+        
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        
+        String savedFilename = uuid + extension;
+        Path destinationFile = targetDir.resolve(savedFilename);
 
-		if (!file.isFile()) {
-			throw new IOException("파일이 아니라 디렉터리입니다: " + path);
-		}
+        // 3. 파일 저장 (덮어쓰기 허용)
+        try (var inputStream = file.getInputStream()) {
+            Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+        }
 
-		return file;
-	}
-	
+        // 4. DB에 저장할 웹 접근 경로 반환
+        // 윈도우의 백슬래시(\)를 웹 표준 슬래시(/)로 변환
+        String webPath = "/" + STATIC_IMG_PATH + "/" + username + "/" + category + "/" + subId + "/" + savedFilename;
+        return webPath.replace("\\", "/");
+    }
 
-	/**
-	 * 바이트 배열을 받아 로컬 경로에 파일로 저장합니다. (예: 업로드된 파일 내용을 이미 byte[]로 받은 경우)
-	 *
-	 * @param data:     저장할 바이트 데이터
-	 * @param savePath: 저장할 전체 경로. 반드시 파일이름까지 포함할 것!! (예: "C:/upload/image.png")
-	 * @return 저장된 File 객체, 실패 시 null 반환
-	 */
-	public static File saveBytesToFile(byte[] data, String savePath) {
-		File file = new File(savePath);
-		// 상위 디렉터리 없으면 생성
-		File parent = file.getParentFile();
-		if (parent != null && !parent.exists()) {
-			if (!parent.mkdirs()) {
-				System.out.println("디렉터리 생성 실패: " + parent.getAbsolutePath());
-				return null;
-			}
-		}
+    /**
+     * 저장된 파일을 Resource 객체로 조회합니다. (다운로드 등에 사용)
+     * @param webPath DB에 저장된 웹 경로 (예: /img/user1/trip/1/abc.jpg)
+     */
+    public Resource loadFileAsResource(String webPath) {
+        try {
+            // 웹 경로에서 실제 파일 시스템 경로로 변환
+            // /img/user1... -> user1...
+            String relativePath = webPath.replace("/" + STATIC_IMG_PATH + "/", "");
+            Path file = rootLocation.resolve(relativePath).normalize();
+            
+            Resource resource = new UrlResource(file.toUri());
+            if (resource.exists() || resource.isReadable()) {
+                return resource;
+            } else {
+                throw new RuntimeException("파일을 찾을 수 없거나 읽을 수 없습니다: " + webPath);
+            }
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("파일 경로가 올바르지 않습니다: " + webPath, e);
+        }
+    }
+    
+    /**
+     * 실제 파일 시스템의 절대 경로를 반환합니다. (AI 분석 등을 위해 필요)
+     * @param webPath DB에 저장된 웹 경로
+     */
+    public String getAbsolutePath(String webPath) {
+        if (webPath == null) return null;
+        String relativePath = webPath.replace("/" + STATIC_IMG_PATH + "/", "");
+        return rootLocation.resolve(relativePath).normalize().toString();
+    }
 
-		try (FileOutputStream fos = new FileOutputStream(file)) {
-			fos.write(data);
-			fos.flush();
-			return file;
-		} catch (IOException e) {
-			System.out.println("파일 저장 중 오류 발생: " + savePath);
-			e.printStackTrace();
-			return null;
-		}
-	}
-	
+    /**
+     * 파일 하나를 삭제합니다.
+     * @param webPath DB에 저장된 웹 경로
+     */
+    public void deleteFile(String webPath) {
+        if (webPath == null) return;
+        try {
+            String relativePath = webPath.replace("/" + STATIC_IMG_PATH + "/", "");
+            Path file = rootLocation.resolve(relativePath);
+            Files.deleteIfExists(file);
+        } catch (IOException e) {
+            log.error("파일 삭제 실패: {}", webPath, e);
+        }
+    }
 
-	/**
-	 * 기존 로컬 파일을 다른 경로로 복사합니다.
-	 *
-	 * @param sourcePath: 원본 파일 경로
-	 * @param targetPath: 복사 대상 파일 경로
-	 * @return 복사된 File 객체, 실패 시 null 반환
-	 */
-	public static File copyFile(String sourcePath, String targetPath) {
-		File source = new File(sourcePath);
-		if (!source.exists() || !source.isFile()) {
-			System.out.println("원본 파일이 존재하지 않습니다: " + sourcePath);
-			return null;
-		}
-
-		File target = new File(targetPath);
-		File parent = target.getParentFile();
-		if (parent != null && !parent.exists()) {
-			if (!parent.mkdirs()) {
-				System.out.println("타겟 디렉터리 생성 실패: " + parent.getAbsolutePath());
-				return null;
-			}
-		}
-
-		try (FileInputStream fis = new FileInputStream(source); FileOutputStream fos = new FileOutputStream(target)) {
-
-			byte[] buffer = new byte[8192];
-			int len;
-			while ((len = fis.read(buffer)) != -1) {
-				fos.write(buffer, 0, len);
-			}
-			fos.flush();
-			return target;
-		} catch (IOException e) {
-			System.out.println("파일 복사 중 오류 발생: " + sourcePath + " -> " + targetPath);
-			e.printStackTrace();
-			return null;
-		}
-	}
-	
-	/**
-	 * 파일 또는 디렉터리를 삭제합니다.
-	 * 디렉터리인 경우 내부 파일/하위 디렉터리까지 재귀적으로 모두 삭제합니다.
-	 *
-	 * @param path: 삭제할 파일 또는 디렉터리 경로
-	 * @return 삭제에 성공하면 true, 실패하면 false 반환
-	 */
-	public static boolean deletePath(String path) {
-	    if (path == null || path.isEmpty()) {
-	        return false;
-	    }
-
-	    File target = new File(path);
-	    return deleteRecursively(target);
-	}
-	
-
-	/**
-	 * deletePath에서 사용하는 재귀 삭제 메서드.
-	 */
-	private static boolean deleteRecursively(File file) {
-	    if (!file.exists()) {
-	        // 이미 존재하지 않으면 삭제된 것으로 간주
-	        return true;
-	    }
-
-	    // file객체가 파일이 아니라 디렉토리라면 그 내부의 자식 요소들(파일이든 디렉토리든)을 재귀적으로 삭제 시도.
-	    if (file.isDirectory()) {
-	        File[] children = file.listFiles();
-	        if (children != null) {
-	            for (File child : children) {
-	                if (!deleteRecursively(child)) {
-	                    // 하나라도 삭제에 실패하면 전체 실패로 간주
-	                    return false;
-	                }
-	            }
-	        }
-	    }
-
-	    // 파일 또는 (비어 있게 된) 디렉터리 삭제 시도
-	    // 자바에 내용물이 있는 디렉토리를 삭제해주는 기능이 없다..
-	    // 재귀적으로 내부를 전부 비워주고 삭제를 시도해야한다...
-	    return file.delete();
-	}
-	
-	
-
+    /**
+     * 특정 디렉토리(여행 기록 전체 등)를 삭제합니다.
+     * @param username 사용자 ID
+     * @param category 카테고리
+     * @param subId ID
+     */
+    public void deleteDirectory(String username, String category, String subId) {
+        Path targetDir = this.rootLocation.resolve(Paths.get(username, category, subId));
+        try {
+            FileSystemUtils.deleteRecursively(targetDir); // 스프링 유틸 사용하여 하위 파일까지 삭제
+            log.info("디렉토리 삭제 완료: {}", targetDir);
+        } catch (IOException e) {
+            log.error("디렉토리 삭제 실패: {}", targetDir, e);
+        }
+    }
 }
