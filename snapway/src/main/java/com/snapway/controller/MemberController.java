@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MemberController {
 
 	private final MemberService memberService;
+	private final FileUtil fileUtil;
 	private final JwtUtil jwtUtil;
 
 	/**
@@ -59,7 +60,7 @@ try {
 			int result = memberService.registMember(member);
 			
 			// 사용자의 id로 된 경로를 서버에 생성.
-			//fileUtil.createUserDirectory(member.getId());
+			fileUtil.createUserDirectory(member.getId());
 
 			if (result == 1) {
 				// 회원가입 성공
