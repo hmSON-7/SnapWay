@@ -189,21 +189,22 @@ const logout = async () => {
 
 .nav-btn.outline {
     background: transparent;
-    color: #1e293b;
-    border: 1px solid #cbd5e1;
+    color: #0b1324;
+    border: 1px solid #7c8aa2;
 }
 
 .nav-btn.outline:hover {
-    background: #e2e8f0;
+    background: #cfd6e2;
 }
 
 .nav-btn.ghost {
-    background: #e2e8f0;
-    color: #1e293b;
+    background: transparent;
+    color: #0b1324;
+    border: 1px solid #7c8aa2;
 }
 
 .nav-btn.ghost:hover {
-    background: #cbd5e1;
+    background: #cfd6e2;
 }
 
 @media (max-width: 768px) {

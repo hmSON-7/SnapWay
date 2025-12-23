@@ -12,7 +12,13 @@ public interface ArticleMapper {
 	List<Article> findAll();
 
 	int saveArticle(Article article) throws Exception;
-	
-	Article getArticle(String articleId) throws Exception;
+
+	Article getArticle(long articleId) throws Exception;
+
+	int updateArticle(Article article) throws Exception;
+
+	int deleteArticle(long articleId) throws Exception;
+
+	int increaseHits(long articleId) throws Exception;
 
 }
