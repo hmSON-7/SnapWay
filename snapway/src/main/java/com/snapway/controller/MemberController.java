@@ -1,6 +1,6 @@
 package com.snapway.controller;
 
-import java.util.HashMap;
+import java.util.*;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.snapway.model.service.MemberService;
+import com.snapway.security.JwtUtil;
 import com.snapway.util.FileUtil;
 
 import jakarta.servlet.http.HttpSession;
@@ -32,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MemberController {
 
 	private final MemberService memberService;
-	//private final FileUtil fileUtil;
+	private final JwtUtil jwtUtil;
 
 	/**
 	 * 회원가입 (POST /api/member/regist)
@@ -86,7 +87,7 @@ try {
 	 * @return 로그인 성공 시 회원 정보(비밀번호 제외), 실패 시 에러 메시지
 	 */
 	@PostMapping("/login")
-	public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> map, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> map) {
 		String email = map.get("email");
 		String password = map.get("password");
 
@@ -95,38 +96,35 @@ try {
 		Map<String, Object> resultMap = new HashMap<>();
 		HttpStatus status = null;
 
-		// 일단 임시로 로그인 됬다고 가정하고 진행
-
 		try {
+			// 1. email, pw로 사용자 인증
 			Member loginMember = memberService.loginMember(email, password);
-			if (loginMember != null) {
-				// 일단 세션 쿠키 방식으로 로그인 인증
-				session.setAttribute("loginUser", loginMember);
-				// 로그인 성공 -> JWT 토큰 발급 로직이 들어갈 자리 (현재는 회원 정보만 반환)
+			
+			if(loginMember != null) { // 로그인 성공 시
+				// 2. 권한 리스트 생성
+				List<String> roles = new ArrayList<>();
+				roles.add(loginMember.getRole().name());
+				
+				// 3. 토큰 생성
+				String accessToken = jwtUtil.generateAccessToken(email, roles);
+				String refreshToken = jwtUtil.generateRefreshToken(email);
+				
+				// 4. 클라이언트에게 전달할 데이터 생성
 				resultMap.put("userInfo", loginMember);
+				resultMap.put("accessToken", accessToken);
+				resultMap.put("refreshToken", refreshToken);
 				resultMap.put("message", "success");
 				status = HttpStatus.OK;
-			} else {
+			}
+			else { // 로그인 실패 시
 				resultMap.put("message", "fail");
-				status = HttpStatus.UNAUTHORIZED; // 401 Unauthorized
+				status = HttpStatus.UNAUTHORIZED;
 			}
 		} catch (Exception e) {
 			log.error("로그인 에러: {}", e.getMessage());
 			resultMap.put("message", e.getMessage());
 			status = HttpStatus.INTERNAL_SERVER_ERROR;
 		}
-
-		/*
-		 * // 1. 테스트용 가짜 회원 생성 (실제로는 DB 조회 결과가 들어올 자리) Member dummyMember =
-		 * Member.builder() .id(1) .email(email) .username("테스트사용자") .role(Role.USER) //
-		 * enum이면 적절히 .profileImg(null) .gender(null) .birthday(null) .style(null)
-		 * .build();
-		 * 
-		 * // 2. 세션에 로그인 정보 저장 session.setAttribute("loginUser", dummyMember);
-		 * 
-		 * // 3. 프론트로 내려줄 요약 정보 (비밀번호 제외) resultMap.put("userInfo", dummyMember);
-		 * resultMap.put("message", "success"); status = HttpStatus.OK;
-		 */
 		System.out.println("로그인 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		return new ResponseEntity<>(resultMap, status);
 	}
