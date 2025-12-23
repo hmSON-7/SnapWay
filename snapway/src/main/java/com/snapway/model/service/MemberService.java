@@ -26,6 +26,9 @@ public interface MemberService {
      */
     boolean idCheck(String email) throws Exception;
     
+    // 회원 정보 조회 (JWT 인증 후 호출)
+ 	Member getMemberInfo(String email) throws Exception;
+    
     /**
      * 회원 정보 수정
      * @param member 수정된 회원 정보를 담은 객체

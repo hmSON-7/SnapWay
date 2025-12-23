@@ -13,9 +13,12 @@ public enum TravelStyle {
     HEALING("휴양 휴식"),
     HISTORY("역사 탐방"),
     SHOPPING("쇼핑 투어"),
+    LOCAL("현지 체험"),
     FESTIVAL("축제/공연"),
     DRIVE("드라이브"),
-    LOCAL("현지 체험");
+    DATE("커플 여행"),
+    FAMILY("가족 여행"),
+    PET("반려동물 동반");
 
     private final String description;
 
