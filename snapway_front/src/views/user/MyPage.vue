@@ -1,11 +1,24 @@
-<!-- src/views/MyPage.vue -->
+<!-- src/views/user/MyPage.vue -->
 <template>
     <div class="mypage">
         <!-- 로그인 + 데이터 로드 성공 -->
         <div class="mypage-card" v-if="!loading && member">
             <div class="header">
-                <div class="avatar">
-                    <span v-if="initials">{{ initials }}</span>
+                <div class="avatar-block">
+                    <div class="avatar">
+                        <img v-if="avatarUrl || member.profileImg" :src="avatarUrl || member.profileImg" alt="프로필 이미지" />
+                        <span v-else-if="initials">{{ initials }}</span>
+                    </div>
+                    <button class="btn avatar-btn" type="button" @click="triggerAvatarUpload">
+                        프로필 이미지 등록
+                    </button>
+                    <input
+                        ref="fileInputRef"
+                        class="avatar-input"
+                        type="file"
+                        accept="image/*"
+                        @change="onAvatarSelect"
+                    />
                 </div>
                 <div class="user-main">
                     <h1 class="username">
@@ -14,7 +27,7 @@
                     <p class="email">
                         {{ member.email }}
                     </p>
-                    <p class="badge">
+                    <p class="badge" :class="{ admin: member.role === 'ADMIN' }">
                         {{ member.role || 'USER' }}
                     </p>
                 </div>
@@ -39,12 +52,6 @@
                     <span class="label">여행 스타일</span>
                     <span class="value">
                         {{ member.style || '아직 선택하지 않았어요' }}
-                    </span>
-                </div>
-                <div class="info-item">
-                    <span class="label">프로필 이미지</span>
-                    <span class="value">
-                        {{ member.profileImg ? '등록됨' : '미등록' }}
                     </span>
                 </div>
             </div>
@@ -77,7 +84,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -90,19 +97,41 @@ const { isLoggedIn } = storeToRefs(authStore)
 // 서버에서 가져온 회원 정보
 const member = ref(null)
 const loading = ref(true)
+const avatarUrl = ref('')
+const fileInputRef = ref(null)
+const fallbackMember = {
+    username: 'LocalUser',
+    email: 'local@snapway.dev',
+    role: 'USER',
+    gender: null,
+    birthday: null,
+    style: 'PHOTO',
+    profileImg: null,
+}
 
 // 새로고침 후 직접 /mypage 들어온 경우를 대비해 localStorage에서 복원
 onMounted(async () => {
     authStore.loadFromStorage()
+    if (authStore.loginUser) {
+        member.value = authStore.loginUser
+    }
 
     try {
         const { data } = await fetchMyInfo() // GET /api/member/me
         member.value = data
     } catch (e) {
-        // 세션이 없거나 401이면 member는 null로 유지 -> 로그인 필요 화면 표시
+        if (!member.value) {
+            member.value = fallbackMember
+        }
         console.error('회원 정보 조회 실패:', e)
     } finally {
         loading.value = false
+    }
+})
+
+watch(member, (nextMember) => {
+    if (nextMember?.profileImg && !avatarUrl.value) {
+        avatarUrl.value = nextMember.profileImg
     }
 })
 
@@ -115,6 +144,20 @@ const initials = computed(() => {
 
 const goHome = () => {
     router.push({ name: 'home' })
+}
+
+const triggerAvatarUpload = () => {
+    fileInputRef.value?.click()
+}
+
+const onAvatarSelect = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+        avatarUrl.value = loadEvent.target?.result ?? ''
+    }
+    reader.readAsDataURL(file)
 }
 
 const onLogout = async () => {
@@ -156,14 +199,21 @@ const onLogout = async () => {
 .header {
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 24px;
     margin-bottom: 18px;
+}
+
+.avatar-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
 }
 
 .avatar {
     flex-shrink: 0;
-    width: 68px;
-    height: 68px;
+    width: 88px;
+    height: 88px;
     border-radius: 999px;
     background: radial-gradient(circle at 30% 0, #38bdf8, #2563eb 45%, #0f172a 100%);
     display: flex;
@@ -177,30 +227,57 @@ const onLogout = async () => {
         0 0 0 1px rgba(148, 163, 184, 0.4);
 }
 
+.avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    object-fit: cover;
+}
+
+.avatar-input {
+    display: none;
+}
+
+.btn.avatar-btn {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.65);
+    color: #e5e7eb;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+}
+
+.btn.avatar-btn:hover {
+    background: rgba(30, 64, 175, 0.65);
+}
+
 .user-main {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
 .username {
     font-size: 1.4rem;
     font-weight: 800;
     color: #e5f0ff;
+    margin: 0;
 }
 
 .email {
     font-size: 0.9rem;
     color: #94a3b8;
+    margin: 0;
 }
 
 .badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-top: 4px;
     align-self: flex-start;
-    padding: 4px 10px;
+    padding: 2px 10px;
+    margin: 4px 0 0;
     border-radius: 999px;
     font-size: 0.78rem;
     letter-spacing: 0.06em;
@@ -210,6 +287,12 @@ const onLogout = async () => {
     border: 1px solid rgba(59, 130, 246, 0.7);
 }
 
+.badge.admin {
+    color: #b91c1c;
+    background: rgba(254, 226, 226, 0.15);
+    border: 1px solid rgba(248, 113, 113, 0.7);
+}
+
 .divider {
     height: 1px;
     margin: 18px 0 16px;
@@ -217,9 +300,9 @@ const onLogout = async () => {
 }
 
 .info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 24px;
     margin-bottom: 22px;
 }
 
@@ -227,6 +310,7 @@ const onLogout = async () => {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 140px;
 }
 
 .label {
@@ -337,7 +421,7 @@ const onLogout = async () => {
     }
 
     .info-grid {
-        grid-template-columns: 1fr;
+        flex-direction: column;
     }
 
     .actions {

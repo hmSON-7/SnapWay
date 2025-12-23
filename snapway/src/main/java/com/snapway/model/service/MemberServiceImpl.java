@@ -24,6 +24,8 @@ public class MemberServiceImpl implements MemberService {
     private final PasswordEncoder passwordEncoder; // SecurityConfig에서 빈으로 등록되어 있어야 함
     @Deprecated // 이 의존성을 다시 사용하게 되면 제거할 것.
     private final AuthenticationManager authenticationManager; 
+    private static final String LOCAL_LOGIN_EMAIL = "local@snapway.dev";
+    private static final String LOCAL_LOGIN_PASSWORD = "local1234";
 
     @Override
     @Transactional
@@ -49,6 +51,15 @@ public class MemberServiceImpl implements MemberService {
 
     @Override
     public Member loginMember(String email, String password) throws Exception {
+        if (LOCAL_LOGIN_EMAIL.equals(email) && LOCAL_LOGIN_PASSWORD.equals(password)) {
+            return Member.builder()
+                .id(-1)
+                .email(LOCAL_LOGIN_EMAIL)
+                .username("LocalUser")
+                .role(Role.USER)
+                .build();
+        }
+
         // [변경] Security 인증 절차 수행
 //        try {
 //            // 1. 인증 토큰 생성 (ID/PW)

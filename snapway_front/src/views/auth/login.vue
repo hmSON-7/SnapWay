@@ -2,6 +2,9 @@
 <template>
     <div class="login-page">
         <div class="login-card">
+            <button class="close-btn" type="button" aria-label="닫기" @click="goHome">
+                X
+            </button>
             <h1 class="login-title">로그인</h1>
             <p class="login-subtitle">
                 SNAPWAY에 다시 오신 것을 환영합니다.
@@ -26,8 +29,8 @@
                     {{ loading ? '로그인 중...' : '로그인' }}
                 </button>
 
-                <button class="btn ghost" type="button" @click="goHome">
-                    홈으로 돌아가기
+                <button class="btn secondary" type="button" @click="goRegist">
+                    회원가입
                 </button>
             </form>
         </div>
@@ -35,7 +38,10 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { useLogin } from '@/composables/useLogin'
+
+const router = useRouter()
 
 const {
     email,
@@ -45,6 +51,10 @@ const {
     onSubmit,
     goHome,
 } = useLogin()
+
+const goRegist = () => {
+    router.push({ name: 'regist' })
+}
 </script>
 
 <style scoped>
@@ -61,6 +71,7 @@ const {
 }
 
 .login-card {
+    position: relative;
     width: 100%;
     max-width: 420px;
     padding: 32px 28px 36px;
@@ -68,6 +79,26 @@ const {
     background: #ffffffee;
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
     backdrop-filter: blur(8px);
+}
+
+.close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: none;
+    background: #e2e8f0;
+    color: #1e293b;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s ease-out;
+}
+
+.close-btn:hover {
+    background: #cbd5e1;
+    transform: translateY(-1px);
 }
 
 .login-title {
@@ -152,14 +183,16 @@ input:focus {
     box-shadow: 0 14px 30px rgba(21, 101, 192, 0.45);
 }
 
-.btn.ghost {
+.btn.secondary {
     margin-top: 6px;
-    background: #e2e8f0;
-    color: #1e293b;
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(14, 165, 233, 0.35);
 }
 
-.btn.ghost:hover {
-    background: #cbd5e1;
+.btn.secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgba(14, 165, 233, 0.45);
 }
 
 /* 반응형 대응 */

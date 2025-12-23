@@ -36,11 +36,15 @@ public class ArticleServiceImpl implements ArticleService {
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public void saveArticle(Article article, List<MultipartFile> files) throws Exception {
+		if (article.getCategory() == null || article.getCategory().isBlank()) {
+			article.setCategory("자유");
+		}
+
 		int result = aMapper.saveArticle(article);
 		if (result != 1)
 			throw new RuntimeException("게시글 등록 실패");
 		
-		String userId = article.getAuthorId();
+		String userId = String.valueOf(article.getAuthorId());
 		long articleId = article.getArticleId();
 		
 		
@@ -68,8 +72,22 @@ public class ArticleServiceImpl implements ArticleService {
 	}
 
 	@Override
-	public Article getArticle(String articleId) throws Exception {
+	@Transactional(rollbackFor = Exception.class)
+	public Article getArticle(long articleId) throws Exception {
+		aMapper.increaseHits(articleId);
 		return aMapper.getArticle(articleId);
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public int updateArticle(Article article) throws Exception {
+		return aMapper.updateArticle(article);
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public int deleteArticle(long articleId) throws Exception {
+		return aMapper.deleteArticle(articleId);
 	}
 
 }
