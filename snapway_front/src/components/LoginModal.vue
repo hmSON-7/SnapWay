@@ -1,6 +1,6 @@
 <!-- src/components/LoginModal.vue -->
 <template>
-    <div class="backdrop" @click.self="onClose">
+    <div class="backdrop">
         <div class="login-card">
             <h1 class="login-title">로그인</h1>
             <p class="login-subtitle">
@@ -15,7 +15,14 @@
 
                 <div class="form-group">
                     <label for="password">비밀번호</label>
-                    <input id="password" v-model="password" type="password" placeholder="비밀번호를 입력하세요" required />
+                    <div class="input-with-toggle">
+                        <input id="password" v-model="password" :type="showPassword ? 'text' : 'password'"
+                            placeholder="비밀번호를 입력하세요" required />
+                        <button class="toggle-btn" type="button" @click="togglePassword"
+                            :aria-pressed="showPassword" :aria-label="showPassword ? '비밀번호 숨기기' : '비밀번호 보기'">
+                            <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <p v-if="error" class="error-message">
@@ -46,9 +53,11 @@ const onClose = () => {
 const {
     email,
     password,
+    showPassword,
     error,
     loading,
     onSubmit,
+    togglePassword,
 } = useLogin({
     // ✅ 로그인 성공 시 모달 닫기
     onSuccess: () => emit('close'),
@@ -109,6 +118,12 @@ const {
     gap: 6px;
 }
 
+.input-with-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
 label {
     font-size: 0.85rem;
     font-weight: 600;
@@ -125,6 +140,34 @@ input {
     font-size: 0.95rem;
     outline: none;
     transition: border-color 0.16s ease-out, box-shadow 0.16s ease-out, background 0.16s ease-out;
+}
+
+.input-with-toggle input {
+    width: 100%;
+    padding-right: 44px;
+}
+
+.toggle-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: #cbd5f5;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.16s ease-out, color 0.16s ease-out;
+}
+
+.toggle-btn:hover {
+    background: rgba(30, 64, 175, 0.4);
+    color: #e5f0ff;
 }
 
 input::placeholder {

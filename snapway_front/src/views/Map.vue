@@ -145,7 +145,6 @@ const searchAttractions = async () => {
     MobileOS: 'ETC',
     MobileApp: 'SnapWay',
     _type: 'json',
-    listYN: 'Y',
     arrange: 'A',
     areaCode: selectedSido.value,
     sigunguCode: selectedGugun.value,

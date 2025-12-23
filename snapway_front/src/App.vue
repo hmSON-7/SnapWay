@@ -3,7 +3,9 @@
   <div id="app">
     <NavBar />
 
-    <RouterView />
+    <main class="app-main">
+      <RouterView />
+    </main>
 
     <Footer />
   </div>
@@ -23,10 +25,25 @@ onMounted(() => {
 </script>
 
 <style>
+:root {
+  --navbar-height: 72px;
+}
+
 /* 선택 사항: 전체 레이아웃 기본 스타일 */
 #app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  padding-top: var(--navbar-height);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --navbar-height: 64px;
+  }
 }
 </style>

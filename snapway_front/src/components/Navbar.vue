@@ -26,6 +26,9 @@
                 <button class="nav-btn ghost" @click="router.push({ name: 'board' })">
                     게시판
                 </button>
+                <button class="nav-btn ghost" @click="goTravelRecord">
+                    여행 기록하기
+                </button>
                 <button class="nav-btn ghost" @click="goMyPage">
                     마이페이지
                 </button>
@@ -64,6 +67,10 @@ const closeLogin = () => {
 
 const goRegist = () => {
     router.push({ name: 'regist' })
+}
+
+const goTravelRecord = () => {
+    router.push({ name: 'record' })
 }
 
 const goMyPage = () => {
@@ -107,8 +114,10 @@ const logout = async () => {
 }
 
 .navbar {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 50;
     width: 100%;
     height: 72px;
