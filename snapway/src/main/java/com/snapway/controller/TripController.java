@@ -38,11 +38,6 @@ public class TripController {
             @RequestParam("files") List<MultipartFile> files,
             HttpSession session
     ) {
-        // 세션에서 로그인 사용자 정보 가져오기
-//        Member loginUser = (Member) session.getAttribute("loginUser");
-//        if (loginUser == null) {
-//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
-//        }
     	
     	Member loginUser = (Member) session.getAttribute("loginUser");
         if (loginUser == null) {
