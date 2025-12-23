@@ -40,13 +40,13 @@ public class ArticleServiceImpl implements ArticleService {
 		if (result != 1)
 			throw new RuntimeException("게시글 등록 실패");
 		
-		String userId = article.getAuthorId();
+		int userId = article.getAuthorId();
 		long articleId = article.getArticleId();
 		
 		
 		// 이미지 파일을 temp에서 articleId폴더로 이동
-		Path tempDir = Paths.get(basePath, userId, "temp");
-		Path articleDir = Paths.get(basePath, userId, String.valueOf(articleId));
+		Path tempDir = Paths.get(basePath, String.valueOf(userId), "temp");
+		Path articleDir = Paths.get(basePath, String.valueOf(userId), String.valueOf(articleId));
 		
 		// 저장할 디렉토리 생성
 		Files.createDirectories(articleDir);
