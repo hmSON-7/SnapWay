@@ -85,12 +85,18 @@
     </resultMap>
 
     <insert id="insertTripPhoto" parameterType="com.snapway.model.dto.TripPhoto">
-        INSERT INTO trip_photo (
-            record_id, file_path, photo_name, caption, uploaded_at
-        ) VALUES (
-            #{recordId}, #{filePath}, #{photoName}, #{caption}, NOW()
-        )
-    </insert>
+		INSERT INTO trip_photo (
+			record_id, 
+			file_path, 
+			photo_name, 
+			caption
+		) VALUES (
+			#{recordId}, 
+			#{filePath}, 
+			#{photoName}, 
+			#{caption}
+		)
+	</insert>
 
     <select id="selectPhotosByRecordId" parameterType="int" resultMap="photoMap">
         SELECT * FROM trip_photo

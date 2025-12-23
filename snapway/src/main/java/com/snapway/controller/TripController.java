@@ -39,7 +39,12 @@ public class TripController {
             HttpSession session
     ) {
         // 세션에서 로그인 사용자 정보 가져오기
-        Member loginUser = (Member) session.getAttribute("loginUser");
+//        Member loginUser = (Member) session.getAttribute("loginUser");
+//        if (loginUser == null) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
+//        }
+    	
+    	Member loginUser = (Member) session.getAttribute("loginUser");
         if (loginUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
         }
@@ -49,6 +54,9 @@ public class TripController {
         try {
             Trip createdTrip = tripService.createAutoTrip(loginUser.getId(), title, files);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdTrip);
+        } catch (IllegalArgumentException e) {
+            log.warn("잘못된 요청: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             log.error("여행 기록 생성 실패", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
