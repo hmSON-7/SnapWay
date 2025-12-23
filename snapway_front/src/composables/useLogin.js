@@ -11,6 +11,7 @@ export function useLogin(options = {}) {
 
   const email = ref("");
   const password = ref("");
+  const showPassword = ref(false);
   const error = ref("");
   const loading = ref(false);
 
@@ -74,12 +75,18 @@ export function useLogin(options = {}) {
     router.push({ name: "home" });
   };
 
+  const togglePassword = () => {
+    showPassword.value = !showPassword.value;
+  };
+
   return {
     email,
     password,
+    showPassword,
     error,
     loading,
     onSubmit,
     goHome,
+    togglePassword,
   };
 }
