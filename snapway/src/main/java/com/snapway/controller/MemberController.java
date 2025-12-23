@@ -171,6 +171,7 @@ try {
 
 	@GetMapping("/fetchMyInfo")
 	public ResponseEntity<?> fetchMyInfo(HttpSession session) {
+		log.debug("fetchMyInfo 컨트롤러 진입");
 		Member loginUser = (Member) session.getAttribute("loginUser");
 
 		if (loginUser == null) {
@@ -178,6 +179,7 @@ try {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
 		}
 
+		log.debug("로그인 정보 확인: {}", loginUser);
 		return ResponseEntity.ok(loginUser);
 	}
 	
