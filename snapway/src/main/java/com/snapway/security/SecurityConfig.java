@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,7 +25,14 @@ public class SecurityConfig {
     private String frontServerOrigin;
 	@Value("${app.self-origin}")
     private String selfOrigin;
+	
+	private final JwtUtil jwtUtil;
 
+	private final JwtAuthenticationFilter jwtFilter;
+	public SecurityConfig(JwtUtil jwtUtil, JwtAuthenticationFilter jwtFilter) {
+		this.jwtFilter = jwtFilter;
+		this.jwtUtil = jwtUtil;
+	}
     // 1. 비밀번호 암호화 빈 등록 (BCrypt)
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -40,36 +48,7 @@ public class SecurityConfig {
     // 3. Security Filter Chain 설정
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    	// csrf 비활성화 할건지 활성화 할건지 상의하고 선택해서 사용
-//        http
-//            // REST API이므로 CSRF 보안 비활성화
-//            .csrf(csrf -> csrf.disable())
-//            
-//            // CORS 설정 (WebConfig에서 설정했더라도 Security에서도 허용해야 함)
-//            .cors(cors -> cors.configure(http))
-//            
-//            // Form Login & Http Basic 비활성화 (순수 REST API 방식)
-//            .formLogin(form -> form.disable())
-//            .httpBasic(basic -> basic.disable())
-//
-//            // 요청 권한 설정
-//            .authorizeHttpRequests(auth -> auth
-//                // 회원가입, 로그인, 중복체크 등은 인증 없이 접근 허용
-//                .requestMatchers("/api/member/regist", "/api/member/login", "/api/member/logout", "/api/member/check-email").permitAll()
-//                // 정적 리소스 허용 (필요 시)
-//                .requestMatchers("/css/**", "/images/**", "/js/**").permitAll()
-//                // 그 외 모든 요청은 인증 필요
-//                .anyRequest().authenticated()
-//            );
-    	
     	http
-    	
-        // CSRF: 쿠키(XSRF-TOKEN) + 헤더(X-XSRF-TOKEN) 조합 사용
-//        .csrf(csrf -> csrf
-//            .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-//            .ignoringRequestMatchers("/api/csrf", "/api/member/login") // 토큰 발급 엔드포인트는 예외
-//            
-//        )
     	.csrf(csrf->csrf.disable())
 
         // CORS
@@ -90,12 +69,13 @@ public class SecurityConfig {
                 "/api/member/fetchMyInfo",
                 "/api/csrf",   // csrf 토큰 발급용
                 "/api/article/**",
-                
                 // 테스트를 위한 임시 개방
                 "/api/trip/**"
             ).permitAll()
             .anyRequest().authenticated()
-        );
+        )
+        
+        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
 
         return http.build();
