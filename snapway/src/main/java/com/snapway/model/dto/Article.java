@@ -14,7 +14,7 @@ public class Article {
 	private long articleId;
 	private String title;
 	private String tags;
-	private String authorId;
+	private int authorId;
 	private String content;
 	private int likes;
 	private LocalDateTime uploadedAt;
