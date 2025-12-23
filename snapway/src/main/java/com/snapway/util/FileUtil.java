@@ -60,6 +60,36 @@ public class FileUtil {
             throw new RuntimeException("파일 저장소 초기화 실패!", e);
         }
     }
+    
+    /**
+     * [신규] 회원 가입 시 사용자 전용 디렉토리 생성
+     * 생성 경로 1: root/{memberId}/article
+     * 생성 경로 2: root/{memberId}/trip
+     * @param memberId 회원 ID (PK)
+     */
+    public void createUserDirectory(int memberId) {
+        String idStr = String.valueOf(memberId);
+        try {
+            // 1. Article 폴더 생성
+            Path articlePath = this.rootLocation.resolve(Paths.get(idStr, "article"));
+            if (!Files.exists(articlePath)) {
+                Files.createDirectories(articlePath);
+            }
+
+            // 2. Trip 폴더 생성
+            Path tripPath = this.rootLocation.resolve(Paths.get(idStr, "trip"));
+            if (!Files.exists(tripPath)) {
+                Files.createDirectories(tripPath);
+            }
+            
+            log.info("사용자 디렉토리 생성 완료: ID {}", memberId);
+            
+        } catch (IOException e) {
+            log.error("사용자 디렉토리 생성 중 오류 발생: ID {}", memberId, e);
+            // 디렉토리 생성이 실패하더라도 회원가입 자체를 롤백할지 여부는 정책에 따라 결정.
+            // 여기서는 로그만 남기고 진행 (추후 saveFile 할 때 생성 시도됨)
+        }
+    }
 
     /**
      * 파일을 구조화된 경로에 저장합니다.
