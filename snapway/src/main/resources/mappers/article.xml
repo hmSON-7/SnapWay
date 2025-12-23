@@ -12,6 +12,8 @@
 		<result column="content" property="content"></result>
 		<result column="likes" property="like"></result>
 		<result column="uploaded_at" property="uploadedAt"></result>
+		<result column="category" property="category"></result>
+		<result column="hits" property="hits"></result>
 	</resultMap>
 
 	<!-- 전체 게시판 조회 -->
@@ -20,10 +22,10 @@
 	</select>
 	
 	<!-- 게시글 등록 -->
-	<insert id="createArticle" parameterType="Article" 
+	<insert id="saveArticle" parameterType="Article" 
 		useGeneratedKeys="true" keyProperty="articleId" keyColumn="article_id">
-		INSERT INTO article(title, tags, author_id, content, likes, uploaded_at)
-		VALUES(#{title}, #{tags}, #{authorId}, #{content}, #{likes}, NOW())
+		INSERT INTO article(title, tags, author_id, content, likes, uploaded_at, category, hits)
+		VALUES(#{title}, #{tags}, #{authorId}, #{content}, #{likes}, NOW(), #{category}, #{hits})
 		
 	</insert>
 </mapper>

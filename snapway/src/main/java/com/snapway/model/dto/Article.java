@@ -18,4 +18,6 @@ public class Article {
 	private String content;
 	private int likes;
 	private LocalDateTime uploadedAt;
+	private String category;
+	private int hits;
 }

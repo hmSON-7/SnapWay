@@ -35,7 +35,7 @@ public class ArticleServiceImpl implements ArticleService {
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public void saveArticle(Article article, List<MultipartFile> files) throws Exception {
+	public void saveArticle(Article article) throws Exception {
 		int result = aMapper.saveArticle(article);
 		if (result != 1)
 			throw new RuntimeException("게시글 등록 실패");
