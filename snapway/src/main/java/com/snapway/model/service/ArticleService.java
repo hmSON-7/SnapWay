@@ -11,5 +11,9 @@ public interface ArticleService {
 
 	void saveArticle(Article article, List<MultipartFile> files) throws Exception;
 
-	Article getArticle(String articleId) throws Exception;
+	Article getArticle(long articleId) throws Exception;
+
+	int updateArticle(Article article) throws Exception;
+
+	int deleteArticle(long articleId) throws Exception;
 }
