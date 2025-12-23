@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+	
+<mapper namespace="com.snapway.model.mapper.ArticleMapper">
+
+	<resultMap id="articleMap" type="Article">
+		<id column="article_id" property="articleId"></id>
+		<result column="title" property="title"></result>
+		<result column="tags" property="tags"></result>
+		<result column="author_id" property="authorId"></result>
+		<result column="content" property="content"></result>
+		<result column="likes" property="like"></result>
+		<result column="uploaded_at" property="uploadedAt"></result>
+	</resultMap>
+
+	<!-- 전체 게시판 조회 -->
+	<select id="findAll" resultMap="articleMap">
+		SELECT * FROM article;
+	</select>
+	
+	<!-- 게시글 등록 -->
+	<insert id="createArticle" parameterType="Article" 
+		useGeneratedKeys="true" keyProperty="articleId" keyColumn="article_id">
+		INSERT INTO article(title, tags, author_id, content, likes, uploaded_at)
+		VALUES(#{title}, #{tags}, #{authorId}, #{content}, #{likes}, NOW())
+		
+	</insert>
+</mapper>
