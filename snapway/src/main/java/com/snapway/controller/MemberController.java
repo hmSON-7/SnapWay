@@ -175,11 +175,13 @@ try {
      */
     @GetMapping("/fetchMyInfo")
     public ResponseEntity<?> fetchMyInfo(Authentication authentication) {
+    	log.debug("마이페이지 접근 요청");
         // Authentication 객체가 null이면 필터에서 걸러졌거나 인증 실패 상태
         if (authentication == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
         }
 
+        log.debug("인증 성공");
         try {
             String email = authentication.getName(); // JWT Payload의 Subject(email) 추출
             Member member = memberService.getMemberInfo(email);
