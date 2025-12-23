@@ -12,7 +12,7 @@ const http = axios.create({
 
 // CSRF 전용 클라이언트 (루트 기준)
 export const csrfClient = axios.create({
-  baseURL, // http://localhost:8080
+  baseURL, // http://localhost:8081
   withCredentials: true,
   timeout: 5000,
   headers: {

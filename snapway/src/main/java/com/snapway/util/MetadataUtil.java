@@ -5,8 +5,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,11 +23,45 @@ import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.drew.metadata.exif.GpsDirectory;
 import com.snapway.model.dto.PhotoMetadata;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
 public class MetadataUtil {
+	
+	/**
+	 * 파일과 추출된 메타데이터를 함께 다루기 위한 래퍼 클래스
+	 */
+	@Getter
+	@Builder
+	@AllArgsConstructor
+	public static class PhotoWithFile {
+		private MultipartFile file;
+		private PhotoMetadata metadata;
+	}
+
+	/**
+	 * 여러 장의 사진을 받아 메타데이터를 추출하고, 촬영 시간 순(오름차순)으로 정렬하여 반환
+	 */
+	public List<PhotoWithFile> extractAndSort(List<MultipartFile> files) {
+		if (files == null || files.isEmpty()) {
+			return new ArrayList<>();
+		}
+
+		return files.stream()
+				.map(file -> PhotoWithFile.builder()
+						.file(file)
+						.metadata(extractMetadata(file))
+						.build())
+				.sorted(Comparator.comparing(
+						pwf -> pwf.getMetadata().getTakenAt(),
+						Comparator.nullsLast(Comparator.naturalOrder()) // 날짜 없는 경우 맨 뒤로
+				))
+				.collect(Collectors.toList());
+	}
 
 	/**
 	 * MultipartFile로부터 메타데이터(촬영 일시 및 GPS) 추출
