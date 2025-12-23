@@ -1,10 +1,9 @@
-<!-- src/components/LoginModal.vue -->
 <template>
-    <div class="backdrop">
+    <div class="backdrop" @click.self="onClose">
         <div class="login-card">
             <h1 class="login-title">로그인</h1>
             <p class="login-subtitle">
-                SNAPWAY에 다시 오신 것을 환영합니다.
+                SNAPWAY에 오신 것을 환영합니다.
             </p>
 
             <form class="login-form" @submit.prevent="onSubmit">
@@ -42,26 +41,54 @@
 </template>
 
 <script setup>
-import { useLogin } from '@/composables/useLogin'
+import { ref } from 'vue'
+import { useAuthStore } from '@/store/useAuthStore'
 
+// 이벤트 정의
 const emit = defineEmits(['close'])
 
+// 스토어 사용
+const authStore = useAuthStore()
+
+// 상태 변수
+const email = ref('')
+const password = ref('')
+const showPassword = ref(false)
+const error = ref('')
+const loading = ref(false)
+
+// 비밀번호 토글
+const togglePassword = () => {
+    showPassword.value = !showPassword.value
+}
+
+// 모달 닫기
 const onClose = () => {
     emit('close')
 }
 
-const {
-    email,
-    password,
-    showPassword,
-    error,
-    loading,
-    onSubmit,
-    togglePassword,
-} = useLogin({
-    // ✅ 로그인 성공 시 모달 닫기
-    onSuccess: () => emit('close'),
-})
+// 로그인 제출
+const onSubmit = async () => {
+    loading.value = true
+    error.value = '' // 에러 초기화
+    
+    try {
+        // 스토어의 login 액션 호출
+        await authStore.login(email.value, password.value)
+        
+        // 성공 시 모달 닫기
+        emit('close')
+    } catch (err) {
+        // 에러 처리
+        if (err.response && err.response.status === 401) {
+            error.value = '이메일 또는 비밀번호가 일치하지 않습니다.'
+        } else {
+            error.value = '로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        }
+    } finally {
+        loading.value = false
+    }
+}
 </script>
 
 <style scoped>
