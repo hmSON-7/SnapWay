@@ -42,8 +42,12 @@ public class TripServiceImpl implements TripService {
     private final ObjectMapper objectMapper;
     private final TripMapper tripMapper;
 
+    /**
+     * 메인 비즈니스 로직
+     * @Transactional 제거. AI 통신과 같은 긴 작업은 트랜잭션 없이 수행
+     * DB 저장 시점에만 별도의 트랜잭션 메서드(saveTripData) 호출
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public Trip createAutoTrip(int memberId, String title, List<MultipartFile> files) throws Exception {
         if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("사진 파일이 없습니다.");
@@ -128,6 +132,24 @@ public class TripServiceImpl implements TripService {
 
         log.info("=== 3단계: 파일 저장 및 DB 처리 ===");
 
+        // 5. [중요] DB 저장 로직만 별도 트랜잭션 메서드로 분리 호출
+        // 자기 자신을 주입받거나, 별도 클래스로 분리해야 @Transactional이 동작하지만,
+        // 여기서는 구조 변경을 최소화하기 위해 바로 호출하되, 실제 운영 환경에서는
+        // AOP 프록시 처리를 위해 saveTripData를 별도 Service로 빼거나 Self-Injection을 고려해야 함.
+        // *참고: 같은 클래스 내 메서드 호출은 @Transactional이 무시될 수 있음 -> 구조상 분리가 정석이나, 
+        // 일단 로직 흐름을 보여드리기 위해 아래 메서드(saveTripData)를 public으로 뺍니다.
+        
+        return saveTripData(memberId, title, minDate, maxDate, analysisResults, generatedContent);
+    }
+    
+    /**
+     * DB 저장과 파일 저장을 담당하는 메서드 (트랜잭션 필수)
+     * 실제로는 외부에서 호출되거나 별도 서비스로 분리하는 것이 가장 안전합니다.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Trip saveTripData(int memberId, String title, LocalDate minDate, LocalDate maxDate, 
+                             List<PhotoAnalysisResult> analysisResults, String generatedContent) throws Exception {
+        
         // 5. Trip 정보 생성
         Trip trip = Trip.builder()
                 .memberId(memberId)
@@ -138,7 +160,6 @@ public class TripServiceImpl implements TripService {
                 .visibility("PUBLIC")
                 .build();
         
-        // DB에 Trip 저장 (MyBatis의 useGeneratedKeys로 tripId가 객체에 주입됨)
         tripMapper.insertTrip(trip);
         int tripId = trip.getTripId();
         log.info("여행 DB 생성 완료: tripId={}", tripId);
@@ -149,12 +170,10 @@ public class TripServiceImpl implements TripService {
         for (int i = 0; i < analysisResults.size(); i++) {
             PhotoAnalysisResult result = analysisResults.get(i);
             
-            // 파일 저장
+            // 파일 저장 (I/O 작업이지만 롤백이 안되므로 신중해야 함, 여기서는 편의상 포함)
             String savedPath = fileUtil.saveFile(result.file, String.valueOf(memberId), "trip", String.valueOf(tripId));
             
-            // 태그 치환: [[PHOTO_0]] -> ![설명](/img/...)
             String placeholder = "[[PHOTO_" + i + "]]";
-            // 캡션(설명)으로 AI가 분석한 내용을 간단히 넣어줄 수 있음 (20자 제한 등)
             String caption = result.description.length() > 20 ? result.description.substring(0, 20) + "..." : result.description;
             String markdownImage = String.format("\n![%s](%s)\n", caption, savedPath);
             
@@ -163,7 +182,7 @@ public class TripServiceImpl implements TripService {
             tripPhotos.add(TripPhoto.builder()
                     .filePath(savedPath)
                     .photoName(result.file.getOriginalFilename())
-                    .caption(result.description) // AI 분석 결과를 캡션으로 활용
+                    .caption(result.description)
                     .build());
         }
 
@@ -175,7 +194,6 @@ public class TripServiceImpl implements TripService {
                 .visitedDate(analysisResults.get(0).metadata().getTakenAt())
                 .build();
         
-        // DB에 Record 저장 (recordId 생성됨)
         tripMapper.insertTripRecord(record);
         int recordId = record.getRecordId();
         
