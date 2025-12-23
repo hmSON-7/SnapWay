@@ -73,7 +73,9 @@ public class ArticleController {
 
 	    try {
 	        // 1. 작성자 ID 설정 (항상 토큰 기준)
-	        //article.setAuthorId(authorId);
+	    	Map<?, ?> details = (Map<?, ?>) auth.getDetails();
+	    	int authorId = (int) details.get("userId");
+	        article.setAuthorId(authorId);
 
 	        // 2. 게시글 저장 (DB insert) 후 articleId 생성
 	        //    aService.saveArticle가 articleId를 세팅해 주도록 구현
@@ -81,8 +83,8 @@ public class ArticleController {
 	        Long articleId = article.getArticleId();
 
 	        // 3. temp 디렉토리 → 최종 디렉토리로 이미지 이동
-	        Path tempDir   = Paths.get(basePath, authorId, "temp");
-	        Path targetDir = Paths.get(basePath, authorId, String.valueOf(articleId));
+	        Path tempDir   = Paths.get(basePath, String.valueOf(authorId), "temp");
+	        Path targetDir = Paths.get(basePath, String.valueOf(authorId), String.valueOf(articleId));
 
 	        Files.createDirectories(targetDir);
 
