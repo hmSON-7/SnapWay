@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.apache.ibatis.annotations.Mapper;
 import com.snapway.model.dto.Trip;
+import com.snapway.model.dto.TripHashtag;
 import com.snapway.model.dto.TripRecord;
 import com.snapway.model.dto.TripPhoto;
 
@@ -15,7 +16,7 @@ public interface TripMapper {
     // --- 1. Trip (여행 폴더) ---
     // 여행 생성
     int insertTrip(Trip trip) throws SQLException;
-    
+
     // 여행 정보 수정 (제목, 날짜, 공개여부 등)
     int updateTrip(Trip trip) throws SQLException;
     
@@ -31,6 +32,9 @@ public interface TripMapper {
     // [메인 피드] 모든 공개 여행 목록 조회 (검색 기능 포함 가능)
     // Map 파라미터 예시: { "keyword": "부산", "sort": "date" }
     List<Trip> selectAllPublicTrips(Map<String, Object> params) throws SQLException;
+    
+    // 해시태그 저장 메서드
+    int insertTripHashtag(TripHashtag tripHashtag) throws SQLException;
 
 
     // --- 2. TripRecord (개별 기록/마커) ---
