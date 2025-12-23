@@ -14,10 +14,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
@@ -64,7 +67,7 @@ public class ArticleController {
 	    try {
 	    	
 	    	//TODO: 나중에 엑세스 토큰 구현되면 거기서 작성자 정보 추출
-	    	article.setAuthorId("1");
+	    	article.setAuthorId(1);
 	        aService.saveArticle(article, files);
 	        return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 등록되었습니다"));
 	    } catch(Exception e) {
@@ -126,7 +129,7 @@ public class ArticleController {
 	 * 게시글을 보여주는 메소드
 	 */
 	@GetMapping("/article")
-	public ResponseEntity<Map<String, ?>> getArticle(@RequestParam String articleId) {
+	public ResponseEntity<Map<String, ?>> getArticle(@RequestParam long articleId) {
 		try {
 			Article article = aService.getArticle(articleId);
 
@@ -139,6 +142,41 @@ public class ArticleController {
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 					.body(Map.of("message", "서버 오류"));
+		}
+	}
+
+	@PutMapping("/article")
+	public ResponseEntity<Map<String, String>> updateArticle(@RequestBody Article article) {
+		try {
+			if (article.getCategory() == null || article.getCategory().isBlank()) {
+				article.setCategory("자유");
+			}
+			int result = aService.updateArticle(article);
+			if (result == 1) {
+				return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 수정되었습니다"));
+			}
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.body(Map.of("message", "게시글이 존재하지 않습니다"));
+		} catch (Exception e) {
+			log.error("게시글 수정 오류", e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("message", e.getMessage()));
+		}
+	}
+
+	@DeleteMapping("/article")
+	public ResponseEntity<Map<String, String>> deleteArticle(@RequestParam long articleId) {
+		try {
+			int result = aService.deleteArticle(articleId);
+			if (result == 1) {
+				return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 삭제되었습니다"));
+			}
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
+					.body(Map.of("message", "게시글이 존재하지 않습니다"));
+		} catch (Exception e) {
+			log.error("게시글 삭제 오류", e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("message", e.getMessage()));
 		}
 	}
 

@@ -1,0 +1,327 @@
+<template>
+  <div class="board-write-page">
+    <div class="board-write-container">
+      <div class="board-write-header">
+        <h2 class="board-write-title">게시글 작성</h2>
+        <p class="board-write-subtitle">매너있게 자신의 여행 팁과 경험을 공유해주세요!</p>
+      </div>
+
+      <form class="board-write-card" @submit.prevent="onSubmit">
+        <div class="field">
+          <label class="field-label" for="title">제목</label>
+          <input
+            id="title"
+            v-model="form.title"
+            class="field-input"
+            type="text"
+            placeholder="제목을 입력해주세요"
+          />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="category">카테고리</label>
+          <select id="category" v-model="form.category" class="field-input">
+            <option value="">카테고리를 선택하세요</option>
+            <option value="여행리뷰">여행 리뷰</option>
+            <option value="여행 팁">여행 팁</option>
+            <option value="질문">질문</option>
+            <option value="동행 구하기">동행구하기</option>
+            <option value="자유">자유 주제</option>
+            <option value="공지" v-if="isAdmin">공지</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field-label" id="content-label">내용</label>
+          <div class="editor-wrap" aria-labelledby="content-label">
+            <div ref="editorRoot" class="editor-root"></div>
+          </div>
+        </div>
+
+        <p class="board-write-note">이미지는 업로드 시 임시 저장됩니다.</p>
+        <p v-if="submitError" class="form-error">{{ submitError }}</p>
+
+        <div class="board-write-actions">
+          <button type="button" class="btn secondary" @click="goBack">뒤로 가기</button>
+          <button type="submit" class="btn primary" :disabled="isSubmitting">글 올리기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
+import Editor from '@toast-ui/editor';
+import '@toast-ui/editor/dist/toastui-editor.css';
+import { useAuthStore } from '@/store/useAuthStore';
+import { createArticle, uploadArticleImage } from '@/api/articleApi';
+
+const router = useRouter();
+const authStore = useAuthStore();
+const isAdmin = computed(() => authStore.isAdmin);
+const editorRoot = ref(null);
+let editorInstance = null;
+const isSubmitting = ref(false);
+const submitError = ref('');
+const form = ref({
+  title: '',
+  category: '',
+  content: '',
+});
+
+const goBack = () => {
+  router.push({ name: 'board' });
+};
+
+const syncContentFromEditor = () => {
+  if (editorInstance) {
+    form.value.content = editorInstance.getMarkdown();
+  }
+};
+
+onMounted(() => {
+  editorInstance = new Editor({
+    el: editorRoot.value,
+    height: '380px',
+    initialEditType: 'wysiwyg',
+    previewStyle: 'vertical',
+    placeholder: 'Write your story',
+    usageStatistics: false,
+    hideModeSwitch: true,
+    initialValue: form.value.content,
+  });
+
+  editorInstance.on('change', syncContentFromEditor);
+  editorInstance.addHook('addImageBlobHook', async (blob, callback) => {
+    try {
+      const { data } = await uploadArticleImage(blob);
+      const imageUrl = data?.fileUrl;
+      if (imageUrl) {
+        callback(imageUrl, blob.name);
+        return false;
+      }
+    } catch (error) {
+      console.error('이미지 업로드 실패:', error);
+    }
+    alert('이미지 업로드에 실패했습니다.');
+    return false;
+  });
+});
+
+onBeforeUnmount(() => {
+  if (editorInstance) {
+    editorInstance.off('change', syncContentFromEditor);
+    editorInstance.removeHook('addImageBlobHook');
+    editorInstance.destroy();
+    editorInstance = null;
+  }
+});
+
+const onSubmit = async () => {
+  submitError.value = '';
+  syncContentFromEditor();
+  if (!form.value.title.trim()) {
+    submitError.value = '제목을 입력해주세요.';
+    return;
+  }
+  if (!form.value.category) {
+    submitError.value = '카테고리를 선택해주세요.';
+    return;
+  }
+  if (!form.value.content.trim()) {
+    submitError.value = '내용을 입력해주세요.';
+    return;
+  }
+
+  const articlePayload = {
+    title: form.value.title.trim(),
+    category: form.value.category,
+    content: form.value.content.trim(),
+    tags: '',
+    authorId: (() => {
+      const raw = Number(authStore.loginUser?.id);
+      return Number.isFinite(raw) && raw > 0 ? raw : 1;
+    })(),
+    likes: 0,
+    hits: 0,
+  };
+
+  const formData = new FormData();
+  formData.append(
+    'article',
+    new Blob([JSON.stringify(articlePayload)], { type: 'application/json' }),
+  );
+
+  try {
+    isSubmitting.value = true;
+    await createArticle(formData);
+    router.push({ name: 'board' });
+  } catch (error) {
+    submitError.value = '게시글 등록에 실패했습니다.';
+    console.error('게시글 등록 실패:', error);
+  } finally {
+    isSubmitting.value = false;
+  }
+};
+</script>
+
+<style scoped>
+.board-write-page {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+  background: radial-gradient(circle at top left, #e3f2fd 0, #f9f9ff 40%, #ffffff 100%);
+  color: #1e293b;
+}
+
+.board-write-container {
+  width: 100%;
+  max-width: 920px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.board-write-header {
+  text-align: center;
+}
+
+.board-write-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.board-write-subtitle {
+  font-size: 1rem;
+  color: #475569;
+}
+
+.board-write-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.field-input {
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  color: #1f2937;
+  background: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.editor-wrap :deep(.toastui-editor-defaultUI) {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.editor-root {
+  width: 100%;
+}
+
+.editor-wrap :deep(.toastui-editor-defaultUI-toolbar) {
+  background: #f8fafc;
+}
+
+.editor-wrap :deep(.toastui-editor-contents) {
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.board-write-note {
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.form-error {
+  font-size: 0.9rem;
+  color: #dc2626;
+}
+
+.board-write-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.btn.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn.secondary {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.btn.secondary:hover {
+  background: #cbd5e1;
+}
+
+@media (max-width: 768px) {
+  .board-write-page {
+    padding: 28px 16px;
+  }
+
+  .board-write-card {
+    padding: 22px 18px;
+  }
+
+  .board-write-title {
+    font-size: 1.7rem;
+  }
+}
+</style>
