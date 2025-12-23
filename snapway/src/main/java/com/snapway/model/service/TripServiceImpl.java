@@ -128,7 +128,7 @@ public class TripServiceImpl implements TripService {
 
         promptBuilder.append("\n[Instructions]\n");
         promptBuilder.append("1. **Content**: Write a detailed Korean(한국어) blog post. Use [[PHOTO_N]] markers for images.\n");
-        promptBuilder.append("2. **Hashtags**: Select 3 to 5 most relevant travel styles strictly from this list: [" + stylesList + "].\n");
+        promptBuilder.append("2. **Hashtags**: Select 2 to 3 most relevant travel styles strictly from this list: [" + stylesList + "].\n");
         
         promptBuilder.append("\n[Output Format]\n");
         promptBuilder.append("You MUST return the result in **Strict JSON format** without Markdown code blocks.\n");
@@ -260,9 +260,13 @@ public class TripServiceImpl implements TripService {
         }
 
         // 7. TripRecord (여행 상세 기록) DB 저장
+        PhotoMetadata mainMetadata = analysisResults.get(0).metadata();
+        
         TripRecord record = TripRecord.builder()
                 .tripId(tripId)
                 .placeName(title)
+                .latitude(mainMetadata.getLatitude())
+                .longitude(mainMetadata.getLongitude())
                 .aiContent(generatedContent)
                 .visitedDate(analysisResults.get(0).metadata().getTakenAt())
                 .build();
