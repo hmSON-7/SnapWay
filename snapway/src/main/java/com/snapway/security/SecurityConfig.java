@@ -87,6 +87,7 @@ public class SecurityConfig {
                 "/api/member/logout",
                 "/api/member/check-email",
                 "/error/**",
+                "/api/member/fetchMyInfo",
                 "/api/csrf",   // csrf 토큰 발급용
                 "/api/article/**",
                 
