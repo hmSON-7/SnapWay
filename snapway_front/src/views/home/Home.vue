@@ -27,7 +27,7 @@
                     <button class="btn primary" @click="goStart">
                         지금 시작하기
                     </button>
-                    <button class="btn secondary" @click="goMyPage">
+                    <button v-if="isLoggedIn" class="btn secondary" @click="goMyPage">
                         내 여행 보러가기
                     </button>
                 </div>
@@ -37,8 +37,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/store/useAuthStore'
 
 // 이미지 5장 import (파일 이름에 맞게 수정)
 import img1 from '@/assets/homeImg/1.jpg'
@@ -48,6 +49,8 @@ import img4 from '@/assets/homeImg/4.jpg'
 import img5 from '@/assets/homeImg/5.jpg'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const isLoggedIn = computed(() => authStore.isLoggedIn)
 
 const images = [img1, img2, img3, img4, img5]
 const currentIndex = ref(0)
@@ -78,11 +81,15 @@ onBeforeUnmount(() => {
 })
 
 const goStart = () => {
-    router.push({ name: 'login' })
+    if (!authStore.isLoggedIn) {
+        router.push({ name: 'login' })
+        return
+    }
+    router.push({ name: 'record' })
 }
 
 const goMyPage = () => {
-    router.push({ name: 'mypage' })
+    router.push({ name: 'myPage' })
 }
 </script>
 
