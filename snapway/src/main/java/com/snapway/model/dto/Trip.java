@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 public class Trip {
     private int tripId;
     private String title;
-    private String tags;
+    
     private int memberId; // 작성자 ID (DB컬럼: id)
     private LocalDateTime uploadedAt;
     private LocalDate startDate;
@@ -24,4 +24,6 @@ public class Trip {
     private String visibility; // PUBLIC or PRIVATE
     
     private List<TripRecord> records;
+    
+    private List<TravelStyle> styles;
 }
