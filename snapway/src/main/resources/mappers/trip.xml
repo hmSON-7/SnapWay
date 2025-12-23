@@ -11,32 +11,75 @@
     <resultMap type="com.snapway.model.dto.Trip" id="tripMap">
         <id column="trip_id" property="tripId"/>
         <result column="title" property="title"/>
-        <result column="tags" property="tags"/>
-        <result column="id" property="memberId"/> <!-- DB 컬럼 id를 DTO memberId에 매핑 -->
+        <result column="id" property="memberId"/> 
         <result column="uploaded_at" property="uploadedAt"/>
         <result column="start_date" property="startDate"/>
         <result column="end_date" property="endDate"/>
         <result column="visibility" property="visibility"/>
+        
+        <collection property="styles" ofType="com.snapway.model.dto.TravelStyle">
+            <result column="style_code"/>
+        </collection>
     </resultMap>
 
     <insert id="insertTrip" parameterType="com.snapway.model.dto.Trip" 
             useGeneratedKeys="true" keyProperty="tripId">
         INSERT INTO trip (
-            title, tags, id, uploaded_at, start_date, end_date, visibility
+            title, id, uploaded_at, start_date, end_date, visibility
         ) VALUES (
-            #{title}, #{tags}, #{memberId}, now(), #{startDate}, #{endDate}, #{visibility}
+            #{title}, #{memberId}, now(), #{startDate}, #{endDate}, #{visibility}
         )
     </insert>
 
+    <update id="updateTrip" parameterType="com.snapway.model.dto.Trip">
+        UPDATE trip
+        <set>
+            <if test="title != null"> title = #{title}, </if>
+            <if test="startDate != null"> start_date = #{startDate}, </if>
+            <if test="endDate != null"> end_date = #{endDate}, </if>
+            <if test="visibility != null"> visibility = #{visibility}, </if>
+        </set>
+        WHERE trip_id = #{tripId}
+    </update>
+
+    <delete id="deleteTrip" parameterType="int">
+        DELETE FROM trip WHERE trip_id = #{tripId}
+    </delete>
+
     <select id="selectTripListByMemberId" parameterType="int" resultMap="tripMap">
-        SELECT * FROM trip
-        WHERE id = #{memberId}
-        ORDER BY start_date DESC, trip_id DESC
+        SELECT t.*, th.style_code
+        FROM trip t
+        LEFT JOIN trip_hashtag th ON t.trip_id = th.trip_id
+        WHERE t.id = #{memberId}
+        ORDER BY t.start_date DESC, t.trip_id DESC
     </select>
 
     <select id="selectTripById" parameterType="int" resultMap="tripMap">
-        SELECT * FROM trip
-        WHERE trip_id = #{tripId}
+        SELECT t.*, th.style_code
+        FROM trip t
+        LEFT JOIN trip_hashtag th ON t.trip_id = th.trip_id
+        WHERE t.trip_id = #{tripId}
+    </select>
+    
+    <select id="selectAllPublicTrips" parameterType="map" resultMap="tripMap">
+        SELECT t.*, th.style_code
+        FROM trip t
+        LEFT JOIN trip_hashtag th ON t.trip_id = th.trip_id
+        WHERE t.visibility = 'PUBLIC'
+        <if test="keyword != null and keyword != ''">
+            AND t.title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <choose>
+            <when test="sort == 'latest'">
+                ORDER BY t.uploaded_at DESC
+            </when>
+            <when test="sort == 'oldest'">
+                ORDER BY t.uploaded_at ASC
+            </when>
+            <otherwise>
+                ORDER BY t.uploaded_at DESC
+            </otherwise>
+        </choose>
     </select>
 
 

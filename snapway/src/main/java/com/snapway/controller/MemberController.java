@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -164,57 +165,70 @@ try {
 	}
 
 	@PostMapping("/logout")
-	public void logout(HttpSession session) {
-		session.invalidate();
-		System.out.println("로그아웃 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-	}
+    public ResponseEntity<String> logout() {
+        log.debug("로그아웃 요청 - 클라이언트 토큰 삭제 필요");
+        return ResponseEntity.ok("success");
+    }
 
-	@GetMapping("/fetchMyInfo")
-	public ResponseEntity<?> fetchMyInfo(HttpSession session) {
-		log.debug("fetchMyInfo 컨트롤러 진입");
-		Member loginUser = (Member) session.getAttribute("loginUser");
-
-		if (loginUser == null) {
-			// 세션에 로그인 정보 없음 → 401 (로그인 필요)
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
-		}
-
-		log.debug("로그인 정보 확인: {}", loginUser);
-		return ResponseEntity.ok(loginUser);
-	}
-	
 	/**
-     * 회원 정보 수정 (POST/api/member/update)
+     * 내 정보 조회 (JWT 기반)
      */
-    @PutMapping("/update")
-    public ResponseEntity<Map<String, Object>> updateMember(@RequestBody Member member, HttpSession session) {
-        Map<String, Object> resultMap = new HashMap<>();
-        
-        // 1. 세션 확인 (본인 확인)
-        Member loginUser = (Member) session.getAttribute("loginUser");
-        if (loginUser == null || !loginUser.getEmail().equals(member.getEmail())) {
-			resultMap.put("message", "unauthorized");
-			return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+    @GetMapping("/fetchMyInfo")
+    public ResponseEntity<?> fetchMyInfo(Authentication authentication) {
+        // Authentication 객체가 null이면 필터에서 걸러졌거나 인증 실패 상태
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
         }
 
         try {
-            // 2. 정보 수정 요청
+            String email = authentication.getName(); // JWT Payload의 Subject(email) 추출
+            Member member = memberService.getMemberInfo(email);
+            
+            if (member == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("회원 정보를 찾을 수 없습니다.");
+            }
+            return ResponseEntity.ok(member);
+            
+        } catch (Exception e) {
+            log.error("정보 조회 에러: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("에러 발생");
+        }
+    }
+	
+    /**
+     * 회원 정보 수정 (PUT /api/member/update)
+     */
+    @PutMapping("/update")
+    public ResponseEntity<Map<String, Object>> updateMember(@RequestBody Member member, Authentication authentication) {
+        Map<String, Object> resultMap = new HashMap<>();
+        
+        if (authentication == null) {
+            resultMap.put("message", "unauthorized");
+            return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+        }
+
+        try {
+            // 1. 토큰에서 이메일 추출
+            String email = authentication.getName();
+            
+            // 2. DB에서 현재 사용자 정보 조회 (PK인 id를 얻기 위함)
+            Member dbMember = memberService.getMemberInfo(email);
+            if (dbMember == null) {
+                resultMap.put("message", "user_not_found");
+                return new ResponseEntity<>(resultMap, HttpStatus.NOT_FOUND);
+            }
+
+            // 3. 수정할 객체에 ID와 이메일 강제 주입 (변조 방지)
+            member.setId(dbMember.getId());
+            member.setEmail(email);
+
+            // 4. 정보 수정 요청
             int result = memberService.updateMember(member);
             
             if (result > 0) {
-                // 3. 성공 시 세션 정보 갱신 (비밀번호 제외한 주요 정보 업데이트)
-                loginUser.setUsername(member.getUsername());
-                loginUser.setGender(member.getGender());
-                loginUser.setBirthday(member.getBirthday());
-                if(member.getStyle() != null) loginUser.setStyle(member.getStyle());
-                // 프로필 이미지 등은 별도 처리가 필요할 수 있음. 차후 판단할 것.
-                
-                session.setAttribute("loginUser", loginUser);
-                
                 resultMap.put("message", "success");
                 return new ResponseEntity<>(resultMap, HttpStatus.OK);
             } else {
-                // DB 업데이트 실패 (대상 없음 등)
                 resultMap.put("message", "fail");
                 return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
             }
@@ -230,27 +244,28 @@ try {
      * 회원 탈퇴 (DELETE /api/member/{email})
      */
     @DeleteMapping("/{email}")
-    public ResponseEntity<Map<String, Object>> deleteMember(@PathVariable String email, HttpSession session) {
+    public ResponseEntity<Map<String, Object>> deleteMember(@PathVariable String email, Authentication authentication) {
         Map<String, Object> resultMap = new HashMap<>();
         
-        // 1. 세션 확인
-        Member loginUser = (Member) session.getAttribute("loginUser");
-        if (loginUser == null || !loginUser.getEmail().equals(email)) {
-			resultMap.put("message", "unauthorized");
-			return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+        if (authentication == null) {
+            resultMap.put("message", "unauthorized");
+            return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+        }
+
+        // 본인 확인: 토큰의 이메일과 삭제 요청한 이메일이 일치하는지 확인
+        String tokenEmail = authentication.getName();
+        if (!tokenEmail.equals(email)) {
+             resultMap.put("message", "forbidden");
+             return new ResponseEntity<>(resultMap, HttpStatus.FORBIDDEN);
         }
 
         try {
-            // 2. 회원 삭제 요청
             int result = memberService.deleteMember(email);
             
             if (result > 0) {
-                // 3. 성공 시 세션 무효화
-                session.invalidate();
                 resultMap.put("message", "success");
                 return new ResponseEntity<>(resultMap, HttpStatus.OK);
             } else {
-                // 삭제 실패 (이미 삭제되었거나 존재하지 않음)
                 resultMap.put("message", "fail");
                 return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
             }
