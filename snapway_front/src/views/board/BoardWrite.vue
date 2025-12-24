@@ -2,8 +2,12 @@
   <div class="board-write-page">
     <div class="board-write-container">
       <div class="board-write-header">
-        <h2 class="board-write-title">게시글 작성</h2>
-        <p class="board-write-subtitle">매너있게 자신의 여행 팁과 경험을 공유해주세요!</p>
+        <h2 class="board-write-title">
+          {{ isEditing ? '게시글 수정' : '게시글 작성' }}
+        </h2>
+        <p class="board-write-subtitle">
+          매너있게 자신의 여행 팁과 경험을 공유해주세요!
+        </p>
       </div>
 
       <form class="board-write-card" @submit.prevent="onSubmit">
@@ -22,7 +26,7 @@
           <label class="field-label" for="category">카테고리</label>
           <select id="category" v-model="form.category" class="field-input">
             <option value="">카테고리를 선택하세요</option>
-            <option value="여행리뷰">여행 리뷰</option>
+            <option value="여행 기록">여행 기록</option>
             <option value="여행 팁">여행 팁</option>
             <option value="질문">질문</option>
             <option value="동행 구하기">동행구하기</option>
@@ -43,7 +47,9 @@
 
         <div class="board-write-actions">
           <button type="button" class="btn secondary" @click="goBack">뒤로 가기</button>
-          <button type="submit" class="btn primary" :disabled="isSubmitting">글 올리기</button>
+          <button type="submit" class="btn primary" :disabled="isSubmitting || (isEditing && !canEdit)">
+            {{ isEditing ? '수정하기' : '글 올리기' }}
+          </button>
         </div>
       </form>
     </div>
@@ -52,15 +58,19 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/toastui-editor.css';
 import { useAuthStore } from '@/store/useAuthStore';
-import { createArticle, uploadArticleImage } from '@/api/articleApi';
+import { createArticle, updateArticle, fetchArticle, uploadArticleImage } from '@/api/articleApi';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.isAdmin);
+const articleId = computed(() => Number(route.params.articleId) || null);
+const isEditing = computed(() => Number.isFinite(articleId.value));
+const canEdit = ref(true);
 const editorRoot = ref(null);
 let editorInstance = null;
 const isSubmitting = ref(false);
@@ -96,7 +106,8 @@ onMounted(() => {
   editorInstance.on('change', syncContentFromEditor);
   editorInstance.addHook('addImageBlobHook', async (blob, callback) => {
     try {
-      const { data } = await uploadArticleImage(blob);
+      const userId = Number(authStore.loginUser?.id) || 1;
+      const { data } = await uploadArticleImage(blob, userId);
       const imageUrl = data?.fileUrl;
       if (imageUrl) {
         callback(imageUrl, blob.name);
@@ -108,6 +119,10 @@ onMounted(() => {
     alert('이미지 업로드에 실패했습니다.');
     return false;
   });
+
+  if (isEditing.value) {
+    loadArticle();
+  }
 });
 
 onBeforeUnmount(() => {
@@ -121,6 +136,10 @@ onBeforeUnmount(() => {
 
 const onSubmit = async () => {
   submitError.value = '';
+  if (isEditing.value && !canEdit.value) {
+    submitError.value = '작성자만 수정할 수 있습니다.';
+    return;
+  }
   syncContentFromEditor();
   if (!form.value.title.trim()) {
     submitError.value = '제목을 입력해주세요.';
@@ -144,25 +163,50 @@ const onSubmit = async () => {
       const raw = Number(authStore.loginUser?.id);
       return Number.isFinite(raw) && raw > 0 ? raw : 1;
     })(),
-    likes: 0,
-    hits: 0,
   };
-
-  const formData = new FormData();
-  formData.append(
-    'article',
-    new Blob([JSON.stringify(articlePayload)], { type: 'application/json' }),
-  );
 
   try {
     isSubmitting.value = true;
-    await createArticle(formData);
-    router.push({ name: 'board' });
+    if (isEditing.value) {
+      await updateArticle({ ...articlePayload, articleId: articleId.value });
+      router.push({ name: 'boardDetail', params: { articleId: articleId.value } });
+    } else {
+      const formData = new FormData();
+      formData.append(
+        'article',
+        new Blob([JSON.stringify({ ...articlePayload, likes: 0, hits: 0 })], {
+          type: 'application/json',
+        }),
+      );
+      await createArticle(formData);
+      router.push({ name: 'board' });
+    }
   } catch (error) {
-    submitError.value = '게시글 등록에 실패했습니다.';
-    console.error('게시글 등록 실패:', error);
+    submitError.value = isEditing.value
+      ? '게시글 수정에 실패했습니다.'
+      : '게시글 등록에 실패했습니다.';
+    console.error('게시글 등록/수정 실패:', error);
   } finally {
     isSubmitting.value = false;
+  }
+};
+
+const loadArticle = async () => {
+  try {
+    const { data } = await fetchArticle(articleId.value);
+    const loaded = data?.article;
+    if (!loaded) return;
+    form.value.title = loaded.title ?? '';
+    form.value.category = loaded.category ?? '';
+    form.value.content = loaded.content ?? '';
+    if (editorInstance) {
+      editorInstance.setMarkdown(form.value.content);
+    }
+    const currentId = Number(authStore.loginUser?.id);
+    canEdit.value = Number.isFinite(currentId) && currentId === Number(loaded.authorId);
+  } catch (error) {
+    submitError.value = '게시글 정보를 불러오지 못했습니다.';
+    console.error('게시글 조회 실패:', error);
   }
 };
 </script>

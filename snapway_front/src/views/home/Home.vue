@@ -27,7 +27,7 @@
                     <button class="btn primary" @click="goStart">
                         지금 시작하기
                     </button>
-                    <button v-if="isLoggedIn" class="btn secondary" @click="goMyPage">
+                    <button v-if="isLoggedIn" class="btn secondary" @click="goMyRecords">
                         내 여행 보러가기
                     </button>
                 </div>
@@ -88,8 +88,8 @@ const goStart = () => {
     router.push({ name: 'record' })
 }
 
-const goMyPage = () => {
-    router.push({ name: 'myPage' })
+const goMyRecords = () => {
+    router.push({ name: 'board', query: { category: 'record', my: '1' } })
 }
 </script>
 

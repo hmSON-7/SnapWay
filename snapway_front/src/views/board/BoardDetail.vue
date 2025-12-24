@@ -26,6 +26,10 @@
 
         <div class="detail-actions">
           <button class="btn secondary" type="button" @click="goBack">목록으로</button>
+          <div class="detail-actions-right">
+            <button v-if="canEdit" class="btn outline" type="button" @click="goEdit">수정</button>
+            <button v-if="canDelete" class="btn danger" type="button" @click="onDelete">삭제</button>
+          </div>
         </div>
       </div>
     </div>
@@ -37,17 +41,26 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Viewer from '@toast-ui/editor/dist/toastui-editor-viewer';
 import '@toast-ui/editor/dist/toastui-editor-viewer.css';
-import { fetchArticle } from '@/api/articleApi';
+import { fetchArticle, deleteArticle } from '@/api/articleApi';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const article = ref(null);
 const isLoading = ref(true);
 const viewerRoot = ref(null);
 let viewerInstance = null;
+const currentUserId = computed(() => Number(authStore.loginUser?.id));
+const canEdit = computed(() => {
+  if (!authStore.isLoggedIn || !article.value) return false;
+  return Number(article.value.authorId) === currentUserId.value;
+});
+const canDelete = computed(() => canEdit.value || authStore.isAdmin);
 
 const categoryLabelMap = {
-  review: '여행리뷰',
+  review: '여행 기록',
+  record: '여행 기록',
   tip: '여행 팁',
   qna: '질문',
   mate: '동행 구하기',
@@ -56,7 +69,7 @@ const categoryLabelMap = {
 };
 
 const categoryClassMap = {
-  여행리뷰: 'cat-review',
+  '여행 기록': 'cat-record',
   '여행 팁': 'cat-tip',
   질문: 'cat-qna',
   '동행 구하기': 'cat-mate',
@@ -116,6 +129,32 @@ onBeforeUnmount(() => {
 
 const goBack = () => {
   router.push({ name: 'board' });
+};
+
+const goEdit = () => {
+  if (!article.value) return;
+  if (!canEdit.value) {
+    alert('작성자만 수정할 수 있습니다.');
+    return;
+  }
+  router.push({ name: 'boardEdit', params: { articleId: article.value.articleId } });
+};
+
+const onDelete = async () => {
+  if (!article.value) return;
+  if (!canDelete.value) {
+    alert('작성자 또는 관리자만 삭제할 수 있습니다.');
+    return;
+  }
+  const ok = confirm('게시글을 삭제할까요?');
+  if (!ok) return;
+  try {
+    await deleteArticle(article.value.articleId);
+    router.push({ name: 'board' });
+  } catch (error) {
+    console.error('게시글 삭제 실패:', error);
+    alert('게시글 삭제에 실패했습니다.');
+  }
 };
 </script>
 
@@ -179,7 +218,14 @@ const goBack = () => {
 
 .detail-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.detail-actions-right {
+  display: flex;
+  gap: 8px;
 }
 
 .btn.secondary {
@@ -197,6 +243,37 @@ const goBack = () => {
   background: #cbd5e1;
 }
 
+.btn.outline {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn.outline:hover {
+  background: #e2e8f0;
+}
+
+.btn.danger {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn.danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(239, 68, 68, 0.35);
+}
+
 .detail-empty {
   text-align: center;
   padding: 60px 20px;
@@ -204,19 +281,25 @@ const goBack = () => {
 }
 
 .category-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
+  align-self: flex-start;
+  width: auto;
+  max-width: max-content;
+  white-space: nowrap;
 }
 
-.cat-review { background: #dcfce7; color: #166534; }
+.cat-record { background: #dcfce7; color: #166534; }
 .cat-tip { background: #e0f2fe; color: #075985; }
 .cat-qna { background: #fef9c3; color: #854d0e; }
 .cat-mate { background: #e0e7ff; color: #3730a3; }
 .cat-notice { background: #fee2e2; color: #991b1b; }
-.cat-free { background: #f8fafc; color: #475569; }
+.cat-free { background: #ccfbf1; color: #0f766e; }
 
 @media (max-width: 768px) {
   .board-detail-page {
