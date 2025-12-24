@@ -22,4 +22,8 @@ public interface ArticleService {
 	int deleteReply(int replyId, Authentication auth);
 
 	int updateReply(Reply reply);
+
+	int updateArticle(Article article) throws Exception;
+
+	int deleteArticle(long articleId) throws Exception;
 }

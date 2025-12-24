@@ -14,6 +14,7 @@ public interface ArticleMapper {
 
 	List<Article> findAll();
 
+
 	int saveArticle(@Param("article") Article article) throws Exception;
 	
 	Article getArticle(@Param("articleId")long articleId) throws Exception;
@@ -25,5 +26,12 @@ public interface ArticleMapper {
 	int deleteReply(@Param("replyId")int replyId, @Param("replierId")int replierId);
 
 	int updateReply(@Param("reply")Reply reply);
+
+	int updateArticle(Article article) throws Exception;
+
+	int deleteArticle(long articleId) throws Exception;
+
+	int increaseHits(long articleId) throws Exception;
+
 
 }

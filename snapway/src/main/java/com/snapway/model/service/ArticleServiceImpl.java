@@ -38,6 +38,10 @@ public class ArticleServiceImpl implements ArticleService {
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public void saveArticle(Article article) throws Exception {
+		if (article.getCategory() == null || article.getCategory().isBlank()) {
+			article.setCategory("자유");
+		}
+
 		int result = aMapper.saveArticle(article);
 		if (result != 1)
 			throw new RuntimeException("게시글 등록 실패");
@@ -70,7 +74,10 @@ public class ArticleServiceImpl implements ArticleService {
 	}
 
 	@Override
+
+	@Transactional(rollbackFor = Exception.class)
 	public Article getArticle(long articleId) throws Exception {
+		aMapper.increaseHits(articleId);
 		return aMapper.getArticle(articleId);
 	}
 
@@ -93,6 +100,17 @@ public class ArticleServiceImpl implements ArticleService {
 	@Override
 	public int updateReply(Reply reply) {
 		return aMapper.updateReply(reply);
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public int updateArticle(Article article) throws Exception {
+		return aMapper.updateArticle(article);
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public int deleteArticle(long articleId) throws Exception {
+		return aMapper.deleteArticle(articleId);
 	}
 
 }
