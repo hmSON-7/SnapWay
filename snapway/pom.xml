@@ -107,7 +107,7 @@
 			<version>0.1.55</version>
 		</dependency>
 
-		<!-- JWT 의존성 -->
+		<!-- 10. JWT 의존성 -->
 			<dependency>
 				<groupId>io.jsonwebtoken</groupId>
 				<artifactId>jjwt-api</artifactId>
@@ -125,6 +125,7 @@
 				<version>0.12.5</version>
 				<scope>runtime</scope>
 			</dependency>
+			
 	</dependencies>
 
 	<build>

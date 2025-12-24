@@ -17,9 +17,13 @@ public class Article {
 	private String title;
 	private String tags;
 	private int authorId;
+
 	private String category;
+
 	private String content;
 	private int likes;
 	private int hits;
 	private LocalDateTime uploadedAt;
+	private String category;
+	private int hits;
 }
