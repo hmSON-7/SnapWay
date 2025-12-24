@@ -100,6 +100,7 @@ public class ArticleServiceImpl implements ArticleService {
 	@Override
 	public int updateReply(Reply reply) {
 		return aMapper.updateReply(reply);
+	}
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
