@@ -3,6 +3,7 @@ package com.snapway.security;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,7 +23,6 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	 private JwtUtil jwtUtil;
-	 
 	 public JwtAuthenticationFilter(JwtUtil ju) {
 		 this.jwtUtil = ju;
 	 }
@@ -35,19 +35,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		if(StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
 			String token = authHeader.substring(7);
 			
-			// 만료되지 않았으면서 accessToken일 경우만 인증 처리
-			if(!jwtUtil.isTokenExpired(token) && jwtUtil.isAccessToken(token)) {
+			// 유효한 토근이면서 accessToken일 경우만 인증 처리
+			if(jwtUtil.isTokenValid(token) && jwtUtil.isAccessToken(token)) {
 				String userName = jwtUtil.getUserName(token);
+				int userId = (int)jwtUtil.parseClaims(token).get("userId");
+				
+				
 				List<String> roles = jwtUtil.getRoles(token);
 				List<GrantedAuthority> authorities = new ArrayList<>();
 				for(String role : roles) {
 					authorities.add(new SimpleGrantedAuthority(role));
 				}
 				
+				
 				// principal, credential, 권한 목록이 들어간다.
 				UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
 						userName, null, authorities
 				);
+				authentication.setDetails(Map.of("userId", userId));
 				SecurityContextHolder.getContext().setAuthentication(authentication);
 			}
 		}

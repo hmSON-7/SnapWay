@@ -101,6 +101,7 @@ try {
 		try {
 			// 1. email, pw로 사용자 인증
 			Member loginMember = memberService.loginMember(email, password);
+			int userId = loginMember.getId();
 			
 			if(loginMember != null) { // 로그인 성공 시
 				// 2. 권한 리스트 생성
@@ -108,7 +109,7 @@ try {
 				roles.add(loginMember.getRole().name());
 				
 				// 3. 토큰 생성
-				String accessToken = jwtUtil.generateAccessToken(email, roles);
+				String accessToken = jwtUtil.generateAccessToken(userId, email, roles);
 				String refreshToken = jwtUtil.generateRefreshToken(email);
 				
 				// 4. 클라이언트에게 전달할 데이터 생성
