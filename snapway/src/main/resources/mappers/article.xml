@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
 	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-	
+
 <mapper namespace="com.snapway.model.mapper.ArticleMapper">
 
 	<resultMap id="articleMap" type="Article">
@@ -10,7 +10,7 @@
 		<result column="tags" property="tags"></result>
 		<result column="author_id" property="authorId"></result>
 		<result column="content" property="content"></result>
-		<result column="likes" property="like"></result>
+		<result column="likes" property="likes"></result>
 		<result column="uploaded_at" property="uploadedAt"></result>
 		<result column="category" property="category"></result>
 		<result column="hits" property="hits"></result>
@@ -20,12 +20,51 @@
 	<select id="findAll" resultMap="articleMap">
 		SELECT * FROM article;
 	</select>
-	
+
 	<!-- 게시글 등록 -->
-	<insert id="saveArticle" parameterType="Article" 
-		useGeneratedKeys="true" keyProperty="articleId" keyColumn="article_id">
-		INSERT INTO article(title, tags, author_id, content, likes, uploaded_at, category, hits)
-		VALUES(#{title}, #{tags}, #{authorId}, #{content}, #{likes}, NOW(), #{category}, #{hits})
-		
+	<insert id="saveArticle" useGeneratedKeys="true"
+		keyProperty="articleId" keyColumn="article_id">
+		INSERT INTO
+		article(title, tags, author_id, content, likes, uploaded_at, category, hits)
+		VALUES(#{article.title}, #{article.tags}, #{article.authorId},
+		#{article.content},
+		#{article.likes}, NOW(), #{article.category}, #{article.hits})
 	</insert>
+
+
+	<!-- 게시글 조회 -->
+	<select id="getArticle" parameterType="long"
+		resultMap="articleMap">
+		SELECT * FROM article
+		WHERE article_id = #{articleId}
+	</select>
+
+	<!-- 댓글 등록 -->
+	<insert id="addReply">
+		INSERT INTO
+		reply(article_id, replier_id, content, replied_at)
+		VALUES(#{reply.articleId}, #{reply.replierId}, #{reply.content}, NOW())
+	</insert>
+
+	<!-- 댓글 조회 -->
+	<select id="getReply" parameterType="long" resultType="Reply">
+		SELECT *
+		FROM reply
+		WHERE article_id = #{articleId}
+	</select>
+
+	<!-- 댓글 삭제 -->
+	<delete id="deleteReply">
+		DELETE FROM reply
+		WHERE reply_id = #{replyId}
+		AND replier_id = #{replierId}
+	</delete>
+
+	<!-- 댓글 수정 -->
+	<update id="updateReply">
+		UPDATE reply SET content = #{reply.content}
+		WHERE reply_id = #{reply.replyId}
+		AND replier_id = #{reply.replierId}
+	</update>
+
 </mapper>
