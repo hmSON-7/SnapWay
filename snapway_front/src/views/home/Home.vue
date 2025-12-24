@@ -82,9 +82,10 @@ onBeforeUnmount(() => {
 
 const goStart = () => {
     if (!authStore.isLoggedIn) {
-        router.push({ name: 'login' })
+        router.push({ name: 'regist' }) // 회원가입
         return
     }
+
     router.push({ name: 'record' })
 }
 

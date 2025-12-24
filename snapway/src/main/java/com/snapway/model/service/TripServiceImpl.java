@@ -1,10 +1,11 @@
-package com.snapway.model.service;
+﻿package com.snapway.model.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -84,7 +85,8 @@ public class TripServiceImpl implements TripService {
                             """;
                     // TODO: 추후 여기에 Reverse Geocoding으로 얻은 주소 정보를 프롬프트에 추가하면 정확도 향상 가능
                     
-                    String description = aiService.generateContent(analysisPrompt, List.of(base64));
+                    String rawDescription = aiService.generateContent(analysisPrompt, List.of(base64));
+                    String description = extractTextFromAiResponse(rawDescription);
                     
                     return new PhotoAnalysisResult(file, metadata, description);
                 } catch (Exception e) {
@@ -193,6 +195,25 @@ public class TripServiceImpl implements TripService {
             return new AiResponseDto("여행기 생성 중 형식이 맞지 않아 원본을 표시합니다.\n" + rawResponse, new ArrayList<>());
         }
     }
+
+    /**
+     * Gemini 응답에서 텍스트만 추출 (사진 설명용)
+     */
+    private String extractTextFromAiResponse(String rawResponse) {
+        if (rawResponse == null) return "";
+        try {
+            JsonNode root = objectMapper.readTree(rawResponse);
+            JsonNode textNode = root.path("candidates").get(0)
+                    .path("content").path("parts").get(0)
+                    .path("text");
+            if (!textNode.isMissingNode()) {
+                return textNode.asText().replace("```", "").trim();
+            }
+        } catch (Exception e) {
+            // rawResponse가 이미 텍스트인 경우 fallback
+        }
+        return rawResponse.replace("```", "").trim();
+    }
     
     /**
      * DB 저장과 파일 저장을 담당하는 메서드 (트랜잭션 필수)
@@ -239,6 +260,7 @@ public class TripServiceImpl implements TripService {
 
         // 6. 파일 저장 및 본문 태그 치환
         List<TripPhoto> tripPhotos = new ArrayList<>();
+        String contentWithImages = generatedContent;
         
         for (int i = 0; i < analysisResults.size(); i++) {
             PhotoAnalysisResult result = analysisResults.get(i);
@@ -250,7 +272,7 @@ public class TripServiceImpl implements TripService {
             String caption = result.description.length() > 20 ? result.description.substring(0, 20) + "..." : result.description;
             String markdownImage = String.format("\n![%s](%s)\n", caption, savedPath);
             
-            generatedContent = generatedContent.replace(placeholder, markdownImage);
+            contentWithImages = contentWithImages.replace(placeholder, markdownImage);
             
             tripPhotos.add(TripPhoto.builder()
                     .filePath(savedPath)
@@ -259,30 +281,38 @@ public class TripServiceImpl implements TripService {
                     .build());
         }
 
-        // 7. TripRecord (여행 상세 기록) DB 저장
-        PhotoMetadata mainMetadata = analysisResults.get(0).metadata();
+        // 7. TripRecord (사진별 기록) DB 저장
+        List<TripRecord> records = new ArrayList<>();
         
-        TripRecord record = TripRecord.builder()
-                .tripId(tripId)
-                .placeName(title)
-                .latitude(mainMetadata.getLatitude())
-                .longitude(mainMetadata.getLongitude())
-                .aiContent(generatedContent)
-                .visitedDate(analysisResults.get(0).metadata().getTakenAt())
-                .build();
-        
-        tripMapper.insertTripRecord(record);
-        int recordId = record.getRecordId();
-        
-        // 8. TripPhoto DB 저장 (recordId 연결)
-        for (TripPhoto photo : tripPhotos) {
+        for (int i = 0; i < analysisResults.size(); i++) {
+            PhotoAnalysisResult result = analysisResults.get(i);
+            PhotoMetadata metadata = result.metadata() != null ? result.metadata() : new PhotoMetadata();
+            TripPhoto photo = tripPhotos.get(i);
+            
+            TripRecord record = TripRecord.builder()
+                    .tripId(tripId)
+                    .placeName(title)
+                    .latitude(metadata.getLatitude())
+                    .longitude(metadata.getLongitude())
+                    .aiContent(i == 0 ? contentWithImages : null)
+                    .visitedDate(metadata.getTakenAt())
+                    .build();
+            
+            tripMapper.insertTripRecord(record);
+            int recordId = record.getRecordId();
+            
+            // 8. TripPhoto DB 저장 (recordId 연결)
             photo.setRecordId(recordId);
             tripMapper.insertTripPhoto(photo);
+            
+            record.setPhotos(List.of(photo));
+            records.add(record);
         }
         
+        records.sort(Comparator.comparing(TripRecord::getVisitedDate, Comparator.nullsLast(Comparator.naturalOrder())));
+        
         // 반환 객체 구성
-        record.setPhotos(tripPhotos);
-        trip.setRecords(List.of(record));
+        trip.setRecords(records);
         
         return trip;
     }
@@ -304,6 +334,7 @@ public class TripServiceImpl implements TripService {
     	
     	// (2) 해당 여행의 세부 기록(Records) 조회
     	List<TripRecord> records = tripMapper.selectRecordsByTripId(tripId);
+    	records.sort(Comparator.comparing(TripRecord::getVisitedDate, Comparator.nullsLast(Comparator.naturalOrder())));
     	
     	// (3) 각 기록별 사진(Photos) 조회 및 조립
     	for(TripRecord record : records) {
@@ -317,3 +348,6 @@ public class TripServiceImpl implements TripService {
     }
     
 }
+
+
+
