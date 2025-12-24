@@ -1,15 +1,22 @@
 package com.snapway.model.service;
 
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.snapway.model.dto.AuthDto;
 import com.snapway.model.dto.AuthDto.PasswordResetRequest;
+import com.snapway.model.dto.AuthDto.ReissueRequest;
+import com.snapway.model.dto.AuthDto.TokenResponse;
+import com.snapway.model.dto.Member;
 import com.snapway.model.mapper.MemberMapper;
+import com.snapway.security.JwtUtil;
 import com.snapway.util.RedisUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -24,12 +31,17 @@ public class AuthServiceImpl implements AuthService {
 	private final EmailService emailService;
 	private final RedisUtil redisUtil;
 	private final PasswordEncoder pwEncoder;
+	private final JwtUtil jwtUtil;
 	
 	// 사용자 인증 코드 만료 시간 : 3분(180초)
 	private static final long AUTH_CODE_EXPIRATION = 180;
 	
 	// 비밀번호 재설정 토큰 만료 시간 : 10분(600초)
 	private static final long RESET_TOKEN_EXPIRATION = 600;
+	
+	// 리프레시 토큰 만료 시간 (application.properties에서 주입, 단위: 밀리초)
+    @Value("${app.jwt.refresh-token-expiretime}")
+    private long refreshTokenExpireMillis;
 
 	/**
 	 * 1. 인증 코드 생성 및 이메일 발송
@@ -106,6 +118,61 @@ public class AuthServiceImpl implements AuthService {
 		redisUtil.deleteData("ResetToken:" + email);
 		
 		log.info("비밀번호 변경 완료: {}", email);
+	}
+
+	// 4. 리프레시 토큰 Redis 저장(로그인 성공 시 호출) - Key: RT:{email}
+	@Override
+	public void saveRefreshToken(String email, String refreshToken) {
+		// RedisUtil은 초 단위를 사용하므로 밀리초 / 1000 사용
+		redisUtil.setDataExpire("RT:" + email, refreshToken, refreshTokenExpireMillis / 1000);
+	}
+
+	// 5. 토큰 재발급(Reissue)
+	@Override
+	public TokenResponse reissue(AuthDto.ReissueRequest request) throws SQLException{
+		String refreshToken = request.getRefreshToken();
+		
+		// 1) 토큰 유효성 및 타입(Refresh) 검증
+        if (!jwtUtil.isTokenValid(refreshToken) || !jwtUtil.isRefreshToken(refreshToken)) {
+            throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        // 2) 토큰에서 유저 정보(Email) 추출
+        String email = jwtUtil.getUserName(refreshToken);
+
+        // 3) Redis에 저장된 토큰과 비교
+        String redisToken = redisUtil.getData("RT:" + email);
+        if (redisToken == null) {
+            throw new IllegalArgumentException("만료된 인증 정보입니다. 다시 로그인해주세요.");
+        }
+        if (!redisToken.equals(refreshToken)) {
+            // Redis 값과 다르면 탈취 가능성 있음 -> 저장된 토큰 삭제 (강제 로그아웃)
+            redisUtil.deleteData("RT:" + email);
+            throw new IllegalArgumentException("토큰 정보가 일치하지 않습니다.");
+        }
+        
+        // 4) 유저 정보(userId, Roles) 조회 (DB 조회 필요)
+        Member member = memberMapper.findByEmail(email);
+        int userId = member.getId();
+        List<String> roles = List.of(member.getRole().name());
+		
+        // 5) 새 토큰 생성 (Access + Refresh) -> RTR(Refresh Token Rotation) 방식 적용
+        String newAccessToken = jwtUtil.generateAccessToken(userId, email, roles);
+        String newRefreshToken = jwtUtil.generateRefreshToken(email); // userId 포함 여부는 JwtUtil 구현 확인
+
+        // 6) Redis 업데이트
+        saveRefreshToken(email, newRefreshToken);
+
+        return AuthDto.TokenResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .build();
+	}
+
+	// 6. 로그아웃(Redis 토큰 삭제)
+	@Override
+	public void logout(String email) {
+		redisUtil.deleteData("RT:" + email);
 	}
 	
 }

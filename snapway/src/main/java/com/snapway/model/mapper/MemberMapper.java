@@ -15,6 +15,9 @@ public interface MemberMapper {
     // 로그인 (이메일로 조회)
     Member loginMember(String email) throws SQLException;
     
+    // 이메일로 회원 정보 조회 (토큰 재발급용)
+    Member findByEmail(String email) throws SQLException;
+    
     // ID로 회원 정보 조회 (세션 갱신/프로필 조회용)
     Member selectMemberById(int id) throws SQLException;
     
