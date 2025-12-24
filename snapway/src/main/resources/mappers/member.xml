@@ -53,5 +53,11 @@
     <delete id="deleteMember" parameterType="string">
         DELETE FROM member WHERE email = #{email}
     </delete>
+    
+    <update id="updatePasswordByEmail">
+        UPDATE member
+        SET password = #{password}
+        WHERE email = #{email}
+    </update>
 
 </mapper>
