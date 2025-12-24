@@ -4,11 +4,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -18,7 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.snapway.model.dto.PhotoMetadata;
+import com.snapway.model.dto.TravelStyle;
 import com.snapway.model.dto.Trip;
+import com.snapway.model.dto.TripHashtag;
 import com.snapway.model.dto.TripPhoto;
 import com.snapway.model.dto.TripRecord;
 import com.snapway.model.mapper.TripMapper;
@@ -41,6 +41,10 @@ public class TripServiceImpl implements TripService {
     private final MetadataUtil metadataUtil;
     private final ObjectMapper objectMapper;
     private final TripMapper tripMapper;
+    
+    // AI 응답 파싱용 내부 레코드
+    private record AiResponseDto(String content, List<String> hashtags) {}
+    private record PhotoAnalysisResult(MultipartFile file, PhotoMetadata metadata, String description) {}
 
     /**
      * 메인 비즈니스 로직
@@ -103,6 +107,11 @@ public class TripServiceImpl implements TripService {
 
 
         log.info("=== 2단계: 여행기 본문 작성 (텍스트 기반) ===");
+        
+        // TravelStyle 목록 문자열 생성
+        String stylesList = Arrays.stream(TravelStyle.values())
+                .map(Enum::name)
+                .collect(Collectors.joining(", "));
 
         // 3. 종합 프롬프트 생성 (텍스트만 모음)
         StringBuilder promptBuilder = new StringBuilder();
@@ -117,17 +126,22 @@ public class TripServiceImpl implements TripService {
             promptBuilder.append(String.format("[Photo %d] Time: %s, Description: %s\n", i, timeStr, result.description));
         }
 
-        promptBuilder.append("\n[Writing Rules]\n");
-        promptBuilder.append("1. Write in Korean (한국어).\n");
-        promptBuilder.append("2. Insert the tag [[PHOTO_N]] (e.g., [[PHOTO_0]]) naturally where each photo should be displayed.\n");
-        promptBuilder.append("3. Do not include a title line, just the blog content.\n");
-        promptBuilder.append("4. Make it sound like a personal diary.\n");
+        promptBuilder.append("\n[Instructions]\n");
+        promptBuilder.append("1. **Content**: Write a detailed Korean(한국어) blog post. Use [[PHOTO_N]] markers for images.\n");
+        promptBuilder.append("2. **Hashtags**: Select 2 to 3 most relevant travel styles strictly from this list: [" + stylesList + "].\n");
+        
+        promptBuilder.append("\n[Output Format]\n");
+        promptBuilder.append("You MUST return the result in **Strict JSON format** without Markdown code blocks.\n");
+        promptBuilder.append("{\n");
+        promptBuilder.append("  \"content\": \"...blog content...\",\n");
+        promptBuilder.append("  \"hashtags\": [\"STYLE1\", \"STYLE2\"]\n");
+        promptBuilder.append("}");
 
         // 4. 최종 글 작성 요청 (이미지 없이 텍스트만 전송 -> Payload 문제 해결!)
-        String fullStory = aiService.generateContent(promptBuilder.toString(), null); // 이미지 null
+        String rawResponse = aiService.generateContent(promptBuilder.toString(), null); // 이미지 null
 
         // 응답에서 JSON 파싱이 필요하다면 수행 (현재 AiService가 JSON String을 리턴한다면)
-        String generatedContent = parseAiResponse(fullStory);
+        AiResponseDto parsedResponse = parseJsonAiResponse(rawResponse);
 
 
         log.info("=== 3단계: 파일 저장 및 DB 처리 ===");
@@ -139,7 +153,45 @@ public class TripServiceImpl implements TripService {
         // *참고: 같은 클래스 내 메서드 호출은 @Transactional이 무시될 수 있음 -> 구조상 분리가 정석이나, 
         // 일단 로직 흐름을 보여드리기 위해 아래 메서드(saveTripData)를 public으로 뺍니다.
         
-        return saveTripData(memberId, title, minDate, maxDate, analysisResults, generatedContent);
+        return saveTripData(memberId, title, minDate, maxDate, analysisResults, parsedResponse.content, parsedResponse.hashtags);
+    }
+    
+    /**
+     * AI의 JSON 응답을 파싱하여 Content와 Hashtags를 추출
+     */
+    private AiResponseDto parseJsonAiResponse(String rawResponse) {
+        try {
+            // 1. Gemini API 응답 구조 파싱 (candidates -> content -> parts -> text)
+            JsonNode root = objectMapper.readTree(rawResponse);
+            JsonNode textNode = root.path("candidates").get(0)
+                                    .path("content").path("parts").get(0)
+                                    .path("text");
+            
+            String innerJsonString = textNode.isMissingNode() ? rawResponse : textNode.asText();
+
+            // 2. AI가 가끔 ```json ... ``` 마크다운을 붙일 수 있으므로 제거
+            innerJsonString = innerJsonString.replaceAll("```json", "").replaceAll("```", "").trim();
+
+            // 3. 내부 JSON (content, hashtags) 파싱
+            JsonNode innerRoot = objectMapper.readTree(innerJsonString);
+            String content = innerRoot.path("content").asText();
+            
+            List<String> hashtags = new ArrayList<>();
+            JsonNode tagsNode = innerRoot.path("hashtags");
+            if (tagsNode.isArray()) {
+                for (JsonNode tag : tagsNode) {
+                    hashtags.add(tag.asText());
+                }
+            }
+            
+            return new AiResponseDto(content, hashtags);
+
+        } catch (Exception e) {
+            log.error("AI 응답 파싱 실패. 원본 응답: {}", rawResponse, e);
+            // 파싱 실패 시, 원본 텍스트를 본문으로 하고 태그는 빈 값 처리 (Fallback)
+            // Gemini API 구조 파싱조차 실패했다면 rawResponse 자체를 반환 시도하지 않음 (복잡함)
+            return new AiResponseDto("여행기 생성 중 형식이 맞지 않아 원본을 표시합니다.\n" + rawResponse, new ArrayList<>());
+        }
     }
     
     /**
@@ -148,7 +200,7 @@ public class TripServiceImpl implements TripService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Trip saveTripData(int memberId, String title, LocalDate minDate, LocalDate maxDate, 
-                             List<PhotoAnalysisResult> analysisResults, String generatedContent) throws Exception {
+                             List<PhotoAnalysisResult> analysisResults, String generatedContent, List<String> hashtags) throws Exception {
         
         // 5. Trip 정보 생성
         Trip trip = Trip.builder()
@@ -163,6 +215,27 @@ public class TripServiceImpl implements TripService {
         tripMapper.insertTrip(trip);
         int tripId = trip.getTripId();
         log.info("여행 DB 생성 완료: tripId={}", tripId);
+        
+        List<TravelStyle> savedStyles = new ArrayList<>();
+        if (hashtags != null && !hashtags.isEmpty()) {
+            for (String tagStr : hashtags) {
+                try {
+                    // 문자열(HEALING) -> Enum 변환
+                    TravelStyle style = TravelStyle.valueOf(tagStr.toUpperCase());
+                    
+                    TripHashtag hashtag = TripHashtag.builder()
+                            .tripId(tripId)
+                            .style(style)
+                            .build();
+                    
+                    tripMapper.insertTripHashtag(hashtag);
+                    savedStyles.add(style);
+                } catch (IllegalArgumentException e) {
+                    log.warn("AI가 생성한 태그 '{}'는 TravelStyle Enum에 존재하지 않아 건너뜁니다.", tagStr);
+                }
+            }
+        }
+        trip.setStyles(savedStyles); // 반환 객체에 설정
 
         // 6. 파일 저장 및 본문 태그 치환
         List<TripPhoto> tripPhotos = new ArrayList<>();
@@ -187,9 +260,13 @@ public class TripServiceImpl implements TripService {
         }
 
         // 7. TripRecord (여행 상세 기록) DB 저장
+        PhotoMetadata mainMetadata = analysisResults.get(0).metadata();
+        
         TripRecord record = TripRecord.builder()
                 .tripId(tripId)
                 .placeName(title)
+                .latitude(mainMetadata.getLatitude())
+                .longitude(mainMetadata.getLongitude())
                 .aiContent(generatedContent)
                 .visitedDate(analysisResults.get(0).metadata().getTakenAt())
                 .build();
@@ -239,20 +316,4 @@ public class TripServiceImpl implements TripService {
     	return trip;
     }
     
-    private String parseAiResponse(String jsonResponse) {
-        try {
-            JsonNode root = objectMapper.readTree(jsonResponse);
-            JsonNode textNode = root.path("candidates").get(0)
-                                    .path("content").path("parts").get(0)
-                                    .path("text");
-            return textNode.isMissingNode() ? jsonResponse : textNode.asText();
-        } catch (Exception e) {
-            // 파싱 실패 시 원본 반환 (혹은 에러 처리)
-            return jsonResponse;
-        }
-    }
-
-    // 내부 데이터 클래스
-    private record PhotoAnalysisResult(MultipartFile file, PhotoMetadata metadata, String description) {}
-
 }
