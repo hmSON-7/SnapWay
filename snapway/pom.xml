@@ -112,6 +112,12 @@
 			<artifactId>jsch</artifactId>
 			<version>0.1.55</version>
 		</dependency>
+		
+		<!-- 10. SMTP -->
+		<dependency>
+		    <groupId>org.springframework.boot</groupId>
+		    <artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
 
 		<!-- JWT 의존성 -->
 			<dependency>
