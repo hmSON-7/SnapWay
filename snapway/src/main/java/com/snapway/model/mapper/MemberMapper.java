@@ -3,6 +3,8 @@ package com.snapway.model.mapper;
 import org.apache.ibatis.annotations.Mapper;
 import com.snapway.model.dto.Member;
 
+import io.lettuce.core.dynamic.annotation.Param;
+
 import java.sql.SQLException;
 
 @Mapper
@@ -24,4 +26,7 @@ public interface MemberMapper {
     
     // 회원 탈퇴
     int deleteMember(String email) throws SQLException;
+    
+    // 비밀번호 변경
+    int updatePasswordByEmail(@Param("email")String email, @Param("password")String password) throws SQLException;
 }

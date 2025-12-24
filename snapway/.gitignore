@@ -38,6 +38,7 @@ application-secret.yml
 ### Secrets & Local Configuration ###
 src/main/resources/application_db.properties
 src/main/resources/application_ai.properties
+src/main/resources/application_mail.properties
 
 ### Uploaded Images ###
 # 로컬 개발 시 생성되는 이미지 저장소 무시
