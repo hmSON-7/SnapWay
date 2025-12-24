@@ -2,14 +2,31 @@
   <div class="record">
     <section class="record-hero">
       <div class="record-card">
-        <p class="record-eyebrow">여행 기록하기</p>
-        <h1 class="record-title">사진과 메모로 여행을 남겨보세요.</h1>
+        <p class="record-eyebrow">여행 기록</p>
+        <h1 class="record-title">사진을 모아 AI 여행 기록을 만들어보세요.</h1>
         <p class="record-subtitle">
-          헤더에서 사진을 올려 AI로 분석하는 기능을 준비 중입니다.
-          지금은 여행 메모 흐름을 정리하는 페이지로 시작합니다.
+          여러 장의 이미지를 올리면 AI가 여행 기록을 정리해줄 수 있도록 준비하고 있어요.
+          지금은 업로드만 가능해요.
         </p>
+        <div class="record-upload">
+          <label class="upload-label" for="record-files">여행 사진 업로드</label>
+          <input
+            id="record-files"
+            class="upload-input"
+            type="file"
+            multiple
+            accept="image/*"
+            @change="onFileChange"
+          />
+          <p class="upload-help">선택된 파일: {{ selectedFiles.length }}개</p>
+          <ul v-if="selectedFiles.length" class="upload-list">
+            <li v-for="file in selectedFiles" :key="file.name">
+              {{ file.name }}
+            </li>
+          </ul>
+        </div>
         <div class="record-actions">
-          <button class="btn primary" disabled>사진 업로드 (준비중)</button>
+          <button class="btn primary" disabled>AI 기록 생성(준비중)</button>
           <button class="btn secondary" @click="goBoard">게시판 둘러보기</button>
         </div>
       </div>
@@ -18,12 +35,18 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const selectedFiles = ref([])
 
 const goBoard = () => {
-  router.push({ name: 'board' })
+  router.push({ name: 'board', query: { category: 'record' } })
+}
+
+const onFileChange = (event) => {
+  selectedFiles.value = Array.from(event.target.files || [])
 }
 </script>
 
@@ -44,7 +67,7 @@ const goBoard = () => {
 .record-card {
   background: #ffffffcc;
   border-radius: 24px;
-  padding: 36px 28px;
+  padding: 44px 28px;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(10px);
 }
@@ -79,6 +102,41 @@ const goBoard = () => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.record-upload {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.upload-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.upload-help {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.upload-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #475569;
 }
 
 .btn {

@@ -27,7 +27,7 @@
                     게시판
                 </button>
                 <button class="nav-btn ghost" @click="goTravelRecord">
-                    여행 기록하기
+                    여행 기록
                 </button>
                 <button class="nav-btn ghost" @click="goMyPage">
                     마이페이지

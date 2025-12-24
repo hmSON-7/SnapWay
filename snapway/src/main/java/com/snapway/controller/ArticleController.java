@@ -98,6 +98,7 @@ public class ArticleController {
 	 */
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, ?>> uploadImage(@RequestPart("file") MultipartFile file,
+			@RequestParam(value = "userId", required = false) Integer userId,
 			HttpServletRequest request)
 			throws IllegalStateException, IOException {
 		if (file == null || file.isEmpty()) {
@@ -105,11 +106,11 @@ public class ArticleController {
 					.body(Map.of("message", "업로드 실패 \n파일이 없습니다"));
 		}
 
-		String userId = "tempUser"; // TODO: 나중에 accessToken에서 추출하도록 변경
+		String userDir = userId != null ? String.valueOf(userId) : "tempUser"; // TODO: 나중에 accessToken에서 추출하도록 변경
 		String fileName = UUID.randomUUID().toString() + file.getOriginalFilename();
 
 		// 경로예시 c:user\\uploads\\userId\temp\fileName
-		Path savePath = Paths.get(basePath, userId, "temp");
+		Path savePath = Paths.get(basePath, userDir, "temp");
 
 		// 이미지를 저장할 디렉토리를 생성
 		Files.createDirectories(savePath);
@@ -120,7 +121,7 @@ public class ArticleController {
 		// 에디터에게 접근 가능한 이미지url을 구성
 		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":"
 				+ request.getServerPort() + request.getContextPath();
-		String fileUrl = baseUrl + "/files/" + userId + "/" +  "temp" + "/" + fileName;
+		String fileUrl = baseUrl + "/files/" + userDir + "/" +  "temp" + "/" + fileName;
 
 		return ResponseEntity.status(HttpStatus.OK).body(Map.of("fileUrl", fileUrl));
 	}
