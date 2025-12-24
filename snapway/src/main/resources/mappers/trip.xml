@@ -30,6 +30,14 @@
             #{title}, #{memberId}, now(), #{startDate}, #{endDate}, #{visibility}
         )
     </insert>
+    
+    <insert id="insertTripHashtag" parameterType="com.snapway.model.dto.TripHashtag">
+        INSERT INTO trip_hashtag (
+            trip_id, style_code
+        ) VALUES (
+            #{tripId}, #{style}
+        )
+    </insert>
 
     <update id="updateTrip" parameterType="com.snapway.model.dto.Trip">
         UPDATE trip

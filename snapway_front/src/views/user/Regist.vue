@@ -1,4 +1,4 @@
-<!-- src/views/Regist.vue -->
+<!-- src/views/user/Regist.vue -->
 <template>
     <div class="regist-page">
         <div class="regist-card">
