@@ -56,17 +56,19 @@ public class ArticleServiceImpl implements ArticleService {
 		Files.createDirectories(articleDir);
 		
 		// temp 디렉토리 안의 이미지 파일을 articleDir로 이동
-		try(Stream<Path> stream = Files.list(tempDir)) {
-			stream
-				.filter(Files::isRegularFile)
-				.forEach(source->{ // 일반 파일이 맞으면 그 파일을 이동시킨다.
-					Path target = articleDir.resolve(source.getFileName());
-					try {
-						Files.move(source, target);
-					} catch(Exception e) {
-						throw new RuntimeException("이미지 이동 실패:" + source, e);
-					}
-				});
+		if (Files.exists(tempDir)) {
+			try(Stream<Path> stream = Files.list(tempDir)) {
+				stream
+					.filter(Files::isRegularFile)
+					.forEach(source->{ // 일반 파일이 맞으면 그 파일을 이동시킨다.
+						Path target = articleDir.resolve(source.getFileName());
+						try {
+							Files.move(source, target);
+						} catch(Exception e) {
+							throw new RuntimeException("이미지 이동 실패:" + source, e);
+						}
+					});
+			}
 		}
 
 	}
