@@ -93,34 +93,33 @@ public class ArticleController {
 
 			// 2. 게시글 저장 (DB insert) 후 articleId 생성
 			// aService.saveArticle가 articleId를 세팅해 주도록 구현
-			aService.saveArticle(article); // files 인자 제거
-			Long articleId = article.getArticleId();
+			aService.saveArticle(article); 
 
-			// 3. temp 디렉토리 → 최종 디렉토리로 이미지 이동
-			Path tempDir = Paths.get(basePath, String.valueOf(authorId), "temp");
-			Path targetDir = Paths.get(basePath, String.valueOf(authorId), String.valueOf(articleId));
-
-			Files.createDirectories(targetDir);
-
-			if (Files.exists(tempDir)) {
-				try (var paths = Files.list(tempDir)) {
-					paths.filter(Files::isRegularFile).forEach(sourcePath -> {
-						try {
-							Path targetPath = targetDir.resolve(sourcePath.getFileName());
-							Files.move(sourcePath, targetPath /* , StandardCopyOption.REPLACE_EXISTING */);
-						} catch (IOException e) {
-							throw new RuntimeException("이미지 이동 실패: " + sourcePath.getFileName(), e);
-						}
-					});
-				}
-
-				// temp 폴더 비었으면 삭제 (선택)
-				try (var paths = Files.list(tempDir)) {
-					if (paths.findAny().isEmpty()) {
-						Files.delete(tempDir);
-					}
-				}
-			}
+//			// 3. temp 디렉토리 → 최종 디렉토리로 이미지 이동
+//			Path tempDir = Paths.get(basePath, String.valueOf(authorId), "temp");
+//			Path targetDir = Paths.get(basePath, String.valueOf(authorId), String.valueOf(articleId));
+//
+//			Files.createDirectories(targetDir);
+//
+//			if (Files.exists(tempDir)) {
+//				try (var paths = Files.list(tempDir)) {
+//					paths.filter(Files::isRegularFile).forEach(sourcePath -> {
+//						try {
+//							Path targetPath = targetDir.resolve(sourcePath.getFileName());
+//							Files.move(sourcePath, targetPath /* , StandardCopyOption.REPLACE_EXISTING */);
+//						} catch (IOException e) {
+//							throw new RuntimeException("이미지 이동 실패: " + sourcePath.getFileName(), e);
+//						}
+//					});
+//				}
+//
+//				// temp 폴더 비었으면 삭제 (선택)
+//				try (var paths = Files.list(tempDir)) {
+//					if (paths.findAny().isEmpty()) {
+//						Files.delete(tempDir);
+//					}
+//				}
+//			}
 
 			return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 등록되었습니다"));
 		} catch (Exception e) {
@@ -163,7 +162,7 @@ public class ArticleController {
 		String fileName = UUID.randomUUID().toString() + file.getOriginalFilename();
 
 		// 경로예시 c:user\\uploads\\userId\temp\fileName
-		Path savePath = Paths.get(basePath, String.valueOf(userId), "temp");
+		Path savePath = Paths.get(basePath, String.valueOf(userId));
 
 		// 이미지를 저장할 디렉토리를 생성
 		Files.createDirectories(savePath);
@@ -171,10 +170,11 @@ public class ArticleController {
 		Path target = savePath.resolve(fileName);
 		file.transferTo(target);
 
-		// 에디터에게 접근 가능한 이미지url을 구성
-		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort()
-				+ request.getContextPath();
-		String fileUrl = baseUrl + "/files/" + userId + "/" + "temp" + "/" + fileName;
+//		// 에디터에게 접근 가능한 이미지url을 구성
+		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + (request.getServerPort() + 1);
+//				+ request.getContextPath();
+//		String fileUrl = baseUrl + "/files/" + userId + "/" + "temp" + "/" + fileName;
+		String fileUrl = baseUrl + "/uploads/" + userId + "/" + fileName;
 
 		return ResponseEntity.status(HttpStatus.OK).body(Map.of("fileUrl", fileUrl));
 	}

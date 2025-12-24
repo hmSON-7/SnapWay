@@ -66,13 +66,13 @@
 			uploaded_at
 		)
 		VALUES(
-			#{title},
-			#{tags},
-			#{authorId},
-			#{category},
-			#{content},
-			#{likes},
-			#{hits},
+			#{article.title},
+			#{article.tags},
+			#{article.authorId},
+			#{article.category},
+			#{article.content},
+			#{article.likes},
+			#{article.hits},
 			NOW()
 		)
 		
