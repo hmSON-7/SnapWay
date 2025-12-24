@@ -1,5 +1,6 @@
 package com.snapway.util;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,8 +68,13 @@ public class MetadataUtil {
 	 * MultipartFile로부터 메타데이터(촬영 일시 및 GPS) 추출
 	 */
 	public PhotoMetadata extractMetadata(MultipartFile multipartFile) {
-		try(InputStream inputStream = multipartFile.getInputStream()) {
-			Metadata metadata = ImageMetadataReader.readMetadata(inputStream);
+		if (multipartFile.isEmpty()) {
+			return new PhotoMetadata();
+		}
+		
+		// BufferedInputStream 사용 유지 (스트림 mark/reset 지원)
+		try(InputStream inputStream = new BufferedInputStream(multipartFile.getInputStream())) {
+			Metadata metadata = ImageMetadataReader.readMetadata(inputStream, multipartFile.getSize());
 			return parseMetadata(metadata);
 		} catch (IOException | ImageProcessingException e) {
 			log.warn("메타데이터 추출 실패 (파일명: {}): {}", multipartFile.getOriginalFilename(), e.getMessage());
@@ -77,29 +83,25 @@ public class MetadataUtil {
 	}
 	
 	public PhotoMetadata extractMetadata(File file) {
-        try {
-            Metadata metadata = ImageMetadataReader.readMetadata(file);
-            return parseMetadata(metadata);
-        } catch (IOException | ImageProcessingException e) {
-            log.warn("메타데이터 추출 실패 (파일경로: {}): {}", file.getPath(), e.getMessage());
-            return new PhotoMetadata();
-        }
-    }
+		try {
+			Metadata metadata = ImageMetadataReader.readMetadata(file);
+			return parseMetadata(metadata);
+		} catch (IOException | ImageProcessingException e) {
+			log.warn("메타데이터 추출 실패 (파일경로: {}): {}", file.getPath(), e.getMessage());
+			return new PhotoMetadata();
+		}
+	}
 	
 	private PhotoMetadata parseMetadata(Metadata metadata) {
 		PhotoMetadata result = new PhotoMetadata();
 		
-		// 1. 촬영 일시 추출(Exif SubIFD 디렉토리 확인)
+		// 1. 촬영 일시 추출
 		ExifSubIFDDirectory exifDirectory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
 		if(exifDirectory != null) {
 			Date date = exifDirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL, TimeZone.getDefault());
 			if(date != null) {
 				result.setTakenAt(LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()));
 			}
-		}
-		
-		if(result.getTakenAt() == null) {
-			log.debug("촬영 일시 정보를 찾을 수 없습니다.");
 		}
 		
 		// 2. GPS 정보 추출
