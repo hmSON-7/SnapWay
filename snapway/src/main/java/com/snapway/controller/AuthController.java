@@ -60,5 +60,18 @@ public class AuthController {
             return ResponseEntity.internalServerError().body(Map.of("message", "비밀번호 변경 중 오류가 발생했습니다."));
         }
     }
+    
+    // 4. 토큰 재발급(Access Token 만료 시 호출)
+    @PostMapping("/reissue")
+    public ResponseEntity<?> reissue(@RequestBody AuthDto.ReissueRequest request) {
+    	try {
+    		AuthDto.TokenResponse tokens = authService.reissue(request);
+    		return ResponseEntity.ok(tokens);
+    	} catch(IllegalArgumentException e) {
+    		return ResponseEntity.status(401).body(Map.of("Message", e.getMessage()));
+    	} catch(Exception e) {
+    		return ResponseEntity.internalServerError().body(Map.of("message", "토큰 재발급 중 오류가 발생했습니다."));
+    	}
+    }
 	
 }
