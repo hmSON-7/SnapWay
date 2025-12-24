@@ -4,11 +4,13 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.snapway.model.dto.Article;
+import com.snapway.model.dto.Reply;
 import com.snapway.model.mapper.ArticleMapper;
 import com.snapway.util.FileUtil;
 
@@ -68,8 +70,29 @@ public class ArticleServiceImpl implements ArticleService {
 	}
 
 	@Override
-	public Article getArticle(String articleId) throws Exception {
+	public Article getArticle(long articleId) throws Exception {
 		return aMapper.getArticle(articleId);
+	}
+
+	@Override
+	public int addReply(Reply reply) {
+		return aMapper.addReply(reply);
+	}
+
+	@Override
+	public List<Reply> getReply(long articleId) {
+		return aMapper.getReply(articleId);
+	}
+
+	@Override
+	public int deleteReply(int replyId, Authentication auth) {
+		int replierId = (int) ((Map<?, ?>) auth.getDetails()).get("userId");
+		return aMapper.deleteReply(replyId, replierId);
+	}
+
+	@Override
+	public int updateReply(Reply reply) {
+		return aMapper.updateReply(reply);
 	}
 
 }
