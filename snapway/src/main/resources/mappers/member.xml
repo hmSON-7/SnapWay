@@ -29,6 +29,10 @@
 		SELECT * FROM member WHERE email = #{email}
 	</select>
     
+    <select id="findByEmail" parameterType="string" resultMap="memberMap">
+        SELECT * FROM member WHERE email = #{email}
+    </select>
+    
     <select id="selectMemberById" parameterType="int" resultMap="memberMap">
         SELECT * FROM member WHERE id = #{id}
     </select>
