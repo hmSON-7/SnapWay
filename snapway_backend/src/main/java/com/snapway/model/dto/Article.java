@@ -25,4 +25,5 @@ public class Article {
 	private int likes;
 	private int hits;
 	private LocalDateTime uploadedAt;
+	private String visibility;
 }

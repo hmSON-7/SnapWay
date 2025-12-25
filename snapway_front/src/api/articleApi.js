@@ -8,7 +8,6 @@ export const fetchArticle = (articleId) =>
 
 export const createArticle = (formData) => {
   const accessToken = localStorage.getItem("accessToken");
-
   return http.post("/article/saveArticle", formData, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -30,3 +29,14 @@ export const uploadArticleImage = (file, userId) => {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
+
+// 댓글 작성
+export const addReply = (replyData) => http.post("/article/addReply", replyData);
+
+// 댓글 수정
+export const updateReply = (replyData) => http.put("/article/updateReply", replyData);
+
+// 댓글 삭제
+export const deleteReply = (replyId) => 
+  http.delete("/article/deleteReply", { data: { replyId } });

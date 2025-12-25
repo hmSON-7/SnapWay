@@ -21,7 +21,10 @@
                     />
                 </div>
                 <div class="user-main">
-                    <h1 class="username">
+                    <div v-if="isEditMode" style="margin-bottom: 4px;">
+                        <input v-model="editForm.username" class="edit-input" type="text" placeholder="닉네임" />
+                    </div>
+                    <h1 v-else class="username">
                         {{ member.username }}
                     </h1>
                     <p class="email">
@@ -38,31 +41,57 @@
             <div class="info-grid">
                 <div class="info-item">
                     <span class="label">성별</span>
-                    <span class="value">
-                        {{ member.gender || '비공개' }}
+                    <select v-if="isEditMode" v-model="editForm.gender" class="edit-input">
+                        <option value="MALE">남성</option>
+                        <option value="FEMALE">여성</option>
+                    </select>
+                    <span v-else class="value">
+                        {{ formatGender(member.gender) }}
                     </span>
                 </div>
                 <div class="info-item">
                     <span class="label">생년월일</span>
-                    <span class="value">
+                    <input v-if="isEditMode" v-model="editForm.birthday" type="date" class="edit-input" />
+                    <span v-else class="value">
                         {{ member.birthday || '비공개' }}
                     </span>
                 </div>
                 <div class="info-item">
                     <span class="label">여행 스타일</span>
-                    <span class="value">
-                        {{ member.style || '아직 선택하지 않았어요' }}
+                    <select v-if="isEditMode" v-model="editForm.style" class="edit-input">
+                        <option v-for="(desc, key) in travelStyles" :key="key" :value="key">
+                            {{ desc }}
+                        </option>
+                    </select>
+                    <span v-else class="value">
+                        {{ travelStyles[member.style] || '아직 선택하지 않았어요' }}
                     </span>
                 </div>
             </div>
 
+            <div v-if="isEditMode" style="margin: 20px 0; padding-top:20px; border-top:1px dashed #475569;">
+                <p style="margin-bottom:8px; font-size:0.9rem; color:#94a3b8;">비밀번호 변경 (선택)</p>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <input v-model="editForm.password" type="password" class="edit-input" placeholder="새 비밀번호" />
+                    <input v-model="editForm.passwordConfirm" type="password" class="edit-input" placeholder="비밀번호 확인" />
+                </div>
+            </div>
             <div class="actions">
-                <button class="btn outline" type="button" @click="goHome">
-                    홈으로 돌아가기
-                </button>
-                <button class="btn danger" type="button" @click="onLogout">
-                    로그아웃
-                </button>
+                <template v-if="!isEditMode">
+                    <button class="btn outline" type="button" @click="goHome">홈으로</button>
+                    <button class="btn primary" type="button" @click="enterEditMode">정보 수정</button>
+                    <button class="btn danger" type="button" @click="onLogout">로그아웃</button>
+                </template>
+
+                <template v-else>
+                    <button class="btn outline" style="color:#ef4444; border-color:#ef4444;" type="button" @click="handleWithdraw">
+                        탈퇴
+                    </button>
+                    <div style="flex:1;"></div> <button class="btn outline" type="button" @click="cancelEdit">취소</button>
+                    <button class="btn primary" type="button" @click="saveChanges" :disabled="isSaving">
+                        {{ isSaving ? '저장..' : '저장' }}
+                    </button>
+                </template>
             </div>
         </div>
 
@@ -84,11 +113,11 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/store/useAuthStore'
-import { fetchMyInfo, logoutMember } from '@/api/memberApi'
+import { fetchMyInfo, logoutMember, updateMember, deleteMember } from '@/api/memberApi'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -99,6 +128,10 @@ const member = ref(null)
 const loading = ref(true)
 const avatarUrl = ref('')
 const fileInputRef = ref(null)
+const isEditMode = ref(false)
+const isSaving = ref(false)
+const passwordError = ref('')
+
 const fallbackMember = {
     username: 'LocalUser',
     email: 'local@snapway.dev',
@@ -108,6 +141,88 @@ const fallbackMember = {
     style: 'PHOTO',
     profileImg: null,
 }
+
+const editForm = reactive({
+    username: '',
+    gender: 'MALE',
+    birthday: '',
+    style: null,
+    password: '',
+    passwordConfirm: ''
+})
+
+const travelStyles = {
+    NATURE: "자연 힐링", CITY: "도시 탐험", FOOD: "맛집 탐방",
+    ACTIVITY: "액티비티", CULTURE: "문화 예술", PHOTO: "인생샷",
+    HEALING: "휴양 휴식", HISTORY: "역사 탐방", SHOPPING: "쇼핑 투어",
+    LOCAL: "현지 체험", FESTIVAL: "축제/공연", DRIVE: "드라이브",
+    DATE: "커플 여행", FAMILY: "가족 여행", PET: "반려동물 동반"
+}
+
+const enterEditMode = () => {
+    if (!member.value) return
+    editForm.username = member.value.username
+    editForm.gender = member.value.gender || 'MALE'
+    editForm.birthday = member.value.birthday
+    editForm.style = member.value.style
+    editForm.password = ''
+    editForm.passwordConfirm = ''
+    isEditMode.value = true
+}
+
+const cancelEdit = () => {
+    if(confirm('수정을 취소할까요?')) isEditMode.value = false
+}
+
+const saveChanges = async () => {
+    if (editForm.password && editForm.password !== editForm.passwordConfirm) {
+        alert('비밀번호가 일치하지 않습니다.')
+        return
+    }
+    
+    try {
+        isSaving.value = true
+        const payload = {
+        username: editForm.username,
+        gender: editForm.gender,
+        birthday: editForm.birthday,
+        style: editForm.style,
+        password: editForm.password || null
+        }
+        
+        // 1. 수정 API 호출
+        await authStore.updateProfile(payload)
+        
+        // 2. 화면 갱신
+        const { data } = await fetchMyInfo()
+        member.value = data
+        authStore.user = data
+        localStorage.setItem('user', JSON.stringify(data))
+        
+        alert('수정되었습니다.')
+        isEditMode.value = false
+    } catch (e) {
+        console.error(e)
+        alert('수정 실패')
+    } finally {
+        isSaving.value = false
+    }
+}
+
+// 8. 탈퇴
+const handleWithdraw = async () => {
+    const input = prompt(`탈퇴하려면 본인의 이메일 [${member.value.email}]을 똑같이 입력하세요.`)
+    if (input === member.value.email) {
+        await authStore.withdraw(member.value.email)
+        alert('탈퇴되었습니다.')
+        router.push('/')
+    } else if (input !== null) {
+        alert('이메일이 일치하지 않습니다.')
+    }
+}
+
+// 9. 성별 표시 헬퍼
+const formatGender = (g) => g === 'MALE' ? '남성' : (g === 'FEMALE' ? '여성' : '비공개')
 
 // 새로고침 후 직접 /mypage 들어온 경우를 대비해 localStorage에서 복원
 onMounted(async () => {
@@ -428,5 +543,22 @@ const onLogout = async () => {
         justify-content: flex-start;
         flex-wrap: wrap;
     }
+}
+
+.edit-input {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    width: 100%;
+    box-sizing: border-box; /* 레이아웃 깨짐 방지 */
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #38bdf8;
+    background: rgba(15, 23, 42, 0.9);
 }
 </style>

@@ -20,3 +20,13 @@ export const fetchMyInfo = (member) => {
 export const registMember = (member) => {
   return http.post("/member/regist", member);
 };
+
+// 회원 정보 수정
+export const updateMember = (member) => {
+  return http.put("/member/update", member);
+};
+
+// 회원 탈퇴
+export const deleteMember = (email) => {
+  return http.delete(`/member/${email}`);
+};

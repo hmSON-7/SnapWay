@@ -12,8 +12,7 @@ import com.snapway.model.dto.Reply;
 @Mapper
 public interface ArticleMapper {
 
-	List<Article> findAll();
-
+	List<Article> findAll(@Param("userId") Integer userId);
 
 	int saveArticle(@Param("article") Article article) throws Exception;
 	

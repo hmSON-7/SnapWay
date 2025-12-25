@@ -1,5 +1,9 @@
 package com.snapway.model.service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -8,8 +12,10 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,7 +29,6 @@ import com.snapway.model.dto.TripHashtag;
 import com.snapway.model.dto.TripPhoto;
 import com.snapway.model.dto.TripRecord;
 import com.snapway.model.mapper.TripMapper;
-import com.snapway.util.FileUtil;
 import com.snapway.util.ImageBase64Encoder;
 import com.snapway.util.MetadataUtil;
 import com.snapway.util.MetadataUtil.PhotoWithFile;
@@ -37,11 +42,13 @@ import lombok.extern.slf4j.Slf4j;
 public class TripServiceImpl implements TripService {
 
     private final AiService aiService;
-    private final FileUtil fileUtil;
     private final ImageBase64Encoder imageBase64Encoder;
     private final MetadataUtil metadataUtil;
     private final ObjectMapper objectMapper;
     private final TripMapper tripMapper;
+    
+    @Value("${spring.servlet.multipart.location}")
+    private String basePath;
     
     // AI 응답 파싱용 내부 레코드
     private record AiResponseDto(String content, List<String> hashtags) {}
@@ -262,21 +269,40 @@ public class TripServiceImpl implements TripService {
         List<TripPhoto> tripPhotos = new ArrayList<>();
         String contentWithImages = generatedContent;
         
+        Path tripDir = Paths.get(basePath, String.valueOf(memberId), "trip", String.valueOf(tripId));
+        if (!Files.exists(tripDir)) {
+            Files.createDirectories(tripDir);
+        }
+
         for (int i = 0; i < analysisResults.size(); i++) {
             PhotoAnalysisResult result = analysisResults.get(i);
             
-            // 파일 저장 (I/O 작업이지만 롤백이 안되므로 신중해야 함, 여기서는 편의상 포함)
-            String savedPath = fileUtil.saveFile(result.file, String.valueOf(memberId), "trip", String.valueOf(tripId));
+            // 파일명 중복 방지 (UUID)
+            String originalFilename = result.file.getOriginalFilename();
+            String uuid = UUID.randomUUID().toString();
+            String savedFilename = uuid + "_" + originalFilename;
             
+            Path targetPath = tripDir.resolve(savedFilename);
+            
+            // 파일 저장 수행
+            try (var inputStream = result.file.getInputStream()) {
+                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            
+            // 웹 접근 URL 생성 (ArticleController 참고: /files/userId/...)
+            // ArticleController가 basePath를 ResourceHandler로 /files/** 와 매핑한다고 가정
+            // URL 구조: /files/{memberId}/trip/{tripId}/{filename}
+            String webPath = "/files/" + memberId + "/trip/" + tripId + "/" + savedFilename;
+
+            // 마크다운 치환
             String placeholder = "[[PHOTO_" + i + "]]";
             String caption = result.description.length() > 20 ? result.description.substring(0, 20) + "..." : result.description;
-            String markdownImage = String.format("\n![%s](%s)\n", caption, savedPath);
-            
+            String markdownImage = String.format("\n![%s](%s)\n", caption, webPath);
             contentWithImages = contentWithImages.replace(placeholder, markdownImage);
             
             tripPhotos.add(TripPhoto.builder()
-                    .filePath(savedPath)
-                    .photoName(result.file.getOriginalFilename())
+                    .filePath(webPath) // DB에는 웹 경로 저장
+                    .photoName(originalFilename)
                     .caption(result.description)
                     .build());
         }

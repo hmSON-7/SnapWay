@@ -1,6 +1,8 @@
 package com.snapway.controller;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -16,14 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.snapway.model.dto.Member;
 import com.snapway.model.service.AuthService;
 import com.snapway.model.service.MemberService;
 import com.snapway.security.JwtUtil;
-import com.snapway.util.FileUtil;
-
-import jakarta.servlet.http.HttpSession;
-
-import com.snapway.model.dto.Member;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +34,6 @@ public class MemberController {
 
 	private final MemberService memberService;
 	private final AuthService authService;
-	private final FileUtil fileUtil;
 	private final JwtUtil jwtUtil;
 
 	/**
@@ -61,9 +58,6 @@ public class MemberController {
 
 			// 1. 회원가입 시도
 			int result = memberService.registMember(member);
-
-			// 사용자의 id로 된 경로를 서버에 생성.
-			fileUtil.createUserDirectory(member.getId());
 
 			if (result == 1) {
 				// 회원가입 성공
@@ -105,14 +99,13 @@ public class MemberController {
 			Member loginMember = memberService.loginMember(email, password);
 
 			if (loginMember != null) { // 로그인 성공 시
-				int userId = loginMember.getId();
 				
 				// 2. 권한 리스트 생성
 				List<String> roles = new ArrayList<>();
 				roles.add(loginMember.getRole().name());
 
 				// 3. 토큰 생성
-				String accessToken = jwtUtil.generateAccessToken(loginMember, userId, email, roles);
+				String accessToken = jwtUtil.generateAccessToken(loginMember, email, roles);
 				String refreshToken = jwtUtil.generateRefreshToken(email);
 				
 				// 4. Redis에 Refresh Token 저장
