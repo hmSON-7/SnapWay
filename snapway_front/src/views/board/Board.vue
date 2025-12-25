@@ -13,170 +13,6 @@ const myOnly = ref(false);
 const isLoading = ref(false);
 const loadError = ref('');
 
-// 더미 데이터 (추후 DB 연동 시 교체)
-const dummyArticles = [
-    {
-        articleId: 5,
-        category: '여행 기록',
-        categoryClass: 'cat-record',
-        title: '제주도 3박 4일 여행 기록',
-        author: '여행러버',
-        authorId: 1,
-        date: '2024-03-15',
-        hits: 128,
-    },
-    {
-        articleId: 4,
-        category: '여행 팁',
-        categoryClass: 'cat-tip',
-        title: '겨울 여행 준비 체크리스트',
-        author: '맛집헌터',
-        authorId: 2,
-        date: '2024-03-14',
-        hits: 95,
-    },
-    {
-        articleId: 14,
-        category: '여행 팁',
-        categoryClass: 'cat-tip',
-        title: '렌터카 예약 전에 꼭 확인할 것들',
-        author: '여행메모',
-        authorId: 4,
-        date: '2024-03-08',
-        hits: 57,
-    },
-    {
-        articleId: 24,
-        category: '여행 팁',
-        categoryClass: 'cat-tip',
-        title: '여행 환전 수수료 절약 꿀팁',
-        author: '환전마스터',
-        authorId: 7,
-        date: '2024-03-02',
-        hits: 41,
-    },
-    {
-        articleId: 3,
-        category: '질문',
-        categoryClass: 'cat-qna',
-        title: '강원도 숙소 추천 부탁드려요',
-        author: '초보여행자',
-        authorId: 3,
-        date: '2024-03-10',
-        hits: 45,
-    },
-    {
-        articleId: 13,
-        category: '질문',
-        categoryClass: 'cat-qna',
-        title: '봄 시즌 제주 렌트카 가격 어떤가요?',
-        author: '궁금해요',
-        authorId: 5,
-        date: '2024-03-06',
-        hits: 29,
-    },
-    {
-        articleId: 23,
-        category: '질문',
-        categoryClass: 'cat-qna',
-        title: '혼자 여행 시 숙소 예약 팁 있을까요?',
-        author: '솔로여행',
-        authorId: 8,
-        date: '2024-02-26',
-        hits: 17,
-    },
-    {
-        articleId: 2,
-        category: '동행 구하기',
-        categoryClass: 'cat-mate',
-        title: '다음 주 전주 같이 가실 분?',
-        author: '혼자여행',
-        authorId: 1,
-        date: '2024-03-05',
-        hits: 12,
-    },
-    {
-        articleId: 12,
-        category: '동행 구하기',
-        categoryClass: 'cat-mate',
-        title: '이번 주말 부산 당일치기 동행',
-        author: '동행찾기',
-        authorId: 6,
-        date: '2024-03-04',
-        hits: 20,
-    },
-    {
-        articleId: 22,
-        category: '동행 구하기',
-        categoryClass: 'cat-mate',
-        title: '남해 드라이브 동행 구합니다',
-        author: '드라이브',
-        authorId: 9,
-        date: '2024-02-24',
-        hits: 8,
-    },
-    {
-        articleId: 1,
-        category: '공지',
-        categoryClass: 'cat-notice',
-        title: '게시판 이용 수칙 안내',
-        author: '관리자',
-        authorId: 0,
-        date: '2024-03-01',
-        hits: 999,
-    },
-    {
-        articleId: 11,
-        category: '공지',
-        categoryClass: 'cat-notice',
-        title: '여행 기록 게시판 운영 정책 안내',
-        author: '관리자',
-        authorId: 0,
-        date: '2024-02-27',
-        hits: 230,
-    },
-    {
-        articleId: 21,
-        category: '공지',
-        categoryClass: 'cat-notice',
-        title: '여행 기록 게시글 작성 시 유의사항',
-        author: '관리자',
-        authorId: 0,
-        date: '2024-02-20',
-        hits: 301,
-    },
-    {
-        articleId: 0,
-        category: '자유',
-        categoryClass: 'cat-free',
-        title: '나만의 여행 음악 추천!',
-        author: '자유글러',
-        authorId: 2,
-        date: '2024-02-28',
-        hits: 34,
-    },
-    {
-        articleId: -1,
-        category: '여행 기록',
-        categoryClass: 'cat-record',
-        title: '가을 단풍 여행 기록',
-        author: '로컬유저',
-        authorId: 1,
-        date: '2024-02-25',
-        hits: 18,
-    },
-    {
-        articleId: -2,
-        category: '여행 기록',
-        categoryClass: 'cat-record',
-        title: '부산 바다 여행 기록',
-        author: '바다좋아',
-        authorId: 2,
-        date: '2024-02-22',
-        hits: 22,
-    },
-];
-
 const categoryLabelMap = {
     review: '여행 기록',
     record: '여행 기록',
@@ -259,7 +95,7 @@ const loadArticles = async () => {
         const { data } = await fetchArticles();
         const list = Array.isArray(data) ? data : data?.articleList ?? [];
         if (!list.length) {
-            articles.value = dummyArticles;
+            articles.value = [];
             return;
         }
         const apiArticles = list.map((article) => {
@@ -275,17 +111,11 @@ const loadArticles = async () => {
                 hits: article.hits ?? 0,
             };
         });
-        const seen = new Set(apiArticles.map((item) => item.articleId));
-        const merged = [...apiArticles];
-        dummyArticles.forEach((dummy) => {
-            if (!seen.has(dummy.articleId)) {
-                merged.push(dummy);
-            }
-        });
-        articles.value = merged;
+        articles.value = apiArticles;
+
     } catch (error) {
         loadError.value = '게시글을 불러오지 못했습니다.';
-        articles.value = dummyArticles;
+        articles.value = [];
     } finally {
         isLoading.value = false;
     }

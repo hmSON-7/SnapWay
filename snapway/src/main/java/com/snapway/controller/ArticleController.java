@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -26,7 +27,9 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.snapway.model.dto.Article;
+import com.snapway.model.dto.Member;
 import com.snapway.model.service.ArticleService;
+import com.snapway.model.service.MemberService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +45,7 @@ public class ArticleController {
 	@Value("${spring.servlet.multipart.max-request-size}")
 	private String totalMaxSize;
 	private final ArticleService aService;
+	private final MemberService memberService;
 	@Value("${spring.servlet.multipart.location}")
 	private String basePath;
 
@@ -63,20 +67,35 @@ public class ArticleController {
 	@PostMapping(value="", consumes= MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, String>> saveArticle(
 			@RequestPart("article") Article article,
-			@RequestPart(value = "files", required = false) List<MultipartFile> files) {
+			@RequestPart(value = "files", required = false) List<MultipartFile> files,
+			Authentication authentication) {
 	    try {
-	    	
-	    	//TODO: 나중에 엑세스 토큰 구현되면 거기서 작성자 정보 추출
-	    	article.setAuthorId(1);
+	    	if (authentication == null) {
+	    		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+	    				.body(Map.of("message", "로그인이 필요합니다."));
+	    	}
+	    	String email = authentication.getName();
+	    	Member loginUser;
+	    	try {
+	    		loginUser = memberService.getMemberInfo(email);
+	    	} catch (Exception e) {
+	    		log.error("회원 조회 오류", e);
+	    		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+	    				.body(Map.of("message", "서버 오류"));
+	    	}
+	    	if (loginUser == null) {
+	    		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+	    				.body(Map.of("message", "로그인이 필요합니다."));
+	    	}
+	    	article.setAuthorId(loginUser.getId());
 	        aService.saveArticle(article, files);
-	        return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 등록되었습니다"));
+	        return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 등록되었습니다."));
 	    } catch(Exception e) {
 	        log.error("게시글 등록 오류", e);
 	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 	            .body(Map.of("message", e.getMessage()));
 	    }
 	}
-	
 	@ExceptionHandler(MaxUploadSizeExceededException.class)
 	public ResponseEntity<Map<String, String>> handleMaxUploadSizeExceededException(
 			MaxUploadSizeExceededException e) {
@@ -99,17 +118,35 @@ public class ArticleController {
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, ?>> uploadImage(@RequestPart("file") MultipartFile file,
 			@RequestParam(value = "userId", required = false) Integer userId,
-			HttpServletRequest request)
+			HttpServletRequest request,
+			Authentication authentication)
 			throws IllegalStateException, IOException {
+		if (authentication == null) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(Map.of("message", "로그인이 필요합니다."));
+		}
+		String email = authentication.getName();
+		Member loginUser;
+		try {
+			loginUser = memberService.getMemberInfo(email);
+		} catch (Exception e) {
+			log.error("회원 조회 오류", e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("message", "서버 오류"));
+		}
+		if (loginUser == null) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(Map.of("message", "로그인이 필요합니다."));
+		}
 		if (file == null || file.isEmpty()) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 					.body(Map.of("message", "업로드 실패 \n파일이 없습니다"));
 		}
 
-		String userDir = userId != null ? String.valueOf(userId) : "tempUser"; // TODO: 나중에 accessToken에서 추출하도록 변경
+		String userDir = String.valueOf(loginUser.getId());
 		String fileName = UUID.randomUUID().toString() + file.getOriginalFilename();
 
-		// 경로예시 c:user\\uploads\\userId\temp\fileName
+		// 경로 예시 c:/user/uploads/userId/temp/fileName
 		Path savePath = Paths.get(basePath, userDir, "temp");
 
 		// 이미지를 저장할 디렉토리를 생성
@@ -118,17 +155,13 @@ public class ArticleController {
 		Path target = savePath.resolve(fileName);
 		file.transferTo(target);
 
-		// 에디터에게 접근 가능한 이미지url을 구성
+		// 프론트에 접근 가능한 이미지url 구성
 		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":"
 				+ request.getServerPort() + request.getContextPath();
 		String fileUrl = baseUrl + "/files/" + userDir + "/" +  "temp" + "/" + fileName;
 
 		return ResponseEntity.status(HttpStatus.OK).body(Map.of("fileUrl", fileUrl));
 	}
-
-	/*
-	 * 게시글을 보여주는 메소드
-	 */
 	@GetMapping("/article")
 	public ResponseEntity<Map<String, ?>> getArticle(@RequestParam long articleId) {
 		try {

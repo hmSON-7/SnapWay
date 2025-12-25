@@ -1,4 +1,4 @@
-﻿package com.snapway.model.service;
+package com.snapway.model.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
