@@ -22,6 +22,11 @@
                             <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                         </button>
                     </div>
+                    <div class="forgot-password-link">
+                        <button type="button" @click="$emit('open-reset')">
+                            비밀번호를 잊으셨나요?
+                        </button>
+                    </div>
                 </div>
 
                 <p v-if="error" class="error-message">
@@ -45,7 +50,7 @@ import { ref } from 'vue'
 import { useAuthStore } from '@/store/useAuthStore'
 
 // 이벤트 정의
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'open-reset'])
 
 // 스토어 사용
 const authStore = useAuthStore()
@@ -284,5 +289,23 @@ input:focus {
         margin: 0 16px;
         padding: 24px 20px 30px;
     }
+}
+
+.forgot-password-link {
+    text-align: right;
+    margin-top: 4px;
+}
+.forgot-password-link button {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+.forgot-password-link button:hover {
+    color: #38bdf8;
 }
 </style>
