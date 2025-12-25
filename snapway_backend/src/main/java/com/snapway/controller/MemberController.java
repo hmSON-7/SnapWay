@@ -22,7 +22,6 @@ import com.snapway.model.dto.Member;
 import com.snapway.model.service.AuthService;
 import com.snapway.model.service.MemberService;
 import com.snapway.security.JwtUtil;
-import com.snapway.util.FileUtil;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +34,6 @@ public class MemberController {
 
 	private final MemberService memberService;
 	private final AuthService authService;
-	private final FileUtil fileUtil;
 	private final JwtUtil jwtUtil;
 
 	/**
@@ -60,9 +58,6 @@ public class MemberController {
 
 			// 1. 회원가입 시도
 			int result = memberService.registMember(member);
-
-			// 사용자의 id로 된 경로를 서버에 생성.
-			fileUtil.createUserDirectory(member.getId());
 
 			if (result == 1) {
 				// 회원가입 성공

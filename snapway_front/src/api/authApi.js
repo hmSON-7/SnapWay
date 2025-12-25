@@ -2,7 +2,7 @@
 import http from "./http";
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 // 1. 인증 번호 발송 요청
 export const sendVerificationCode = (email) => {
