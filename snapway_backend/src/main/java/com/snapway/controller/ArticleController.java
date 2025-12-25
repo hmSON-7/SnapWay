@@ -209,6 +209,90 @@ public class ArticleController {
 					.body(Map.of("message", "게시글 조회 중 오류가 발생했습니다"));
 		}
 	}
+	
+	/*
+     * 게시글 수정 (PUT /api/article/article)
+     */
+    @PutMapping("/article")
+    public ResponseEntity<Map<String, String>> updateArticle(@RequestBody Article article, Authentication auth) {
+        // 1. 로그인 확인
+        if (auth == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "로그인이 필요합니다"));
+        }
+
+        try {
+            // 2. 현재 로그인한 사용자 ID 가져오기
+            Map<?, ?> details = (Map<?, ?>) auth.getDetails();
+            int userId = (int) details.get("userId");
+
+            // 3. 기존 게시글 확인 (본인 글인지 검증)
+            // 주의: getArticle 호출 시 조회수가 1 올라가지만, 권한 체크를 위해 조회 필수
+            Article existingArticle = aService.getArticle(article.getArticleId());
+            
+            if (existingArticle == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "게시글이 존재하지 않습니다."));
+            }
+
+            if (existingArticle.getAuthorId() != userId) {
+                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "수정 권한이 없습니다."));
+            }
+
+            // 4. 작성자 정보는 위변조 방지를 위해 로그인 정보로 덮어씌우거나 유지
+            article.setAuthorId(userId); 
+
+            // 5. 업데이트 실행
+            int result = aService.updateArticle(article);
+            if (result != 1) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "게시글 수정 실패"));
+            }
+
+            return ResponseEntity.ok(Map.of("message", "게시글이 수정되었습니다."));
+
+        } catch (Exception e) {
+            log.error("게시글 수정 오류", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "서버 오류 발생"));
+        }
+    }
+
+    /*
+     * 게시글 삭제 (DELETE /api/article/article?articleId=123)
+     */
+    @DeleteMapping("/article")
+    public ResponseEntity<Map<String, String>> deleteArticle(@RequestParam long articleId, Authentication auth) {
+         // 1. 로그인 확인
+         if (auth == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "로그인이 필요합니다"));
+        }
+
+        try {
+            // 2. 현재 로그인한 사용자 ID 가져오기
+            Map<?, ?> details = (Map<?, ?>) auth.getDetails();
+            int userId = (int) details.get("userId");
+
+            // 3. 기존 게시글 확인 (본인 글인지 검증)
+            Article existingArticle = aService.getArticle(articleId);
+             if (existingArticle == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "게시글이 존재하지 않습니다."));
+            }
+
+            // 본인 확인 (관리자 삭제 로직이 필요하다면 여기에 OR 조건 추가)
+            if (existingArticle.getAuthorId() != userId) {
+                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "삭제 권한이 없습니다."));
+            }
+
+            // 4. 삭제 실행
+            int result = aService.deleteArticle(articleId);
+             if (result != 1) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "게시글 삭제 실패"));
+            }
+
+            return ResponseEntity.ok(Map.of("message", "게시글이 삭제되었습니다."));
+
+        } catch (Exception e) {
+            log.error("게시글 삭제 오류", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "서버 오류 발생"));
+        }
+    }
 
 
 	@PostMapping("/addReply")
