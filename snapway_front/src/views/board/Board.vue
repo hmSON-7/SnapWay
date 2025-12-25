@@ -62,10 +62,19 @@ const categories = [
 ];
 
 const filteredArticles = computed(() => {
+    let result = articles.value;
+
+    result = result.filter(article => {
+        if (article.visibility === 'PRIVATE') {
+            return isMine(article);
+        }
+        return true;
+    });
+
     if (selectedCategory.value === 'all') {
-        return myOnly.value ? articles.value.filter(isMine) : articles.value;
+        return myOnly.value ? result.filter(isMine) : result;
     }
-    return articles.value.filter((article) => {
+    return result.filter((article) => {
         const matchesCategory = article.category === selectedCategory.value;
         if (!matchesCategory) return false;
         return myOnly.value ? isMine(article) : true;
@@ -73,9 +82,17 @@ const filteredArticles = computed(() => {
 });
 
 const isMine = (article) => {
-    const currentId = Number(authStore.loginUser?.id);
-    if (!Number.isFinite(currentId)) return false;
-    return Number(article.authorId) === currentId;
+    const userInfo = authStore.user; 
+    
+    if (!userInfo) return false;
+    
+    const currentId = Number(userInfo.id);
+    const authorId = Number(article.authorId);
+    
+    // 둘 다 유효한 숫자여야 함
+    if (!Number.isFinite(currentId) || !Number.isFinite(authorId)) return false;
+    
+    return authorId === currentId;
 };
 
 const setCategory = (value) => {
@@ -105,13 +122,19 @@ const loadArticles = async () => {
                 category,
                 categoryClass: toCategoryClass(category),
                 title: article.title,
-                author: article.authorId ?? '익명',
+                author: article.authorName ?? '익명',
                 authorId: article.authorId ?? null,
                 date: formatDate(article.uploadedAt),
                 hits: article.hits ?? 0,
+                visibility: article.visibility || 'PUBLIC'
             };
         });
-        articles.value = apiArticles;
+        articles.value = apiArticles.filter(article => {
+            if (article.visibility === 'PRIVATE') {
+                return isMine(article);
+            }
+            return true;
+        });
 
     } catch (error) {
         loadError.value = '게시글을 불러오지 못했습니다.';
@@ -228,9 +251,10 @@ const goDetail = (articleId) => {
                     </span>
                     </td>
                     <td class="td-title">
-                    <a href="#" class="article-link" @click.prevent="goDetail(article.articleId)">
-                        {{ article.title }}
-                    </a>
+                        <a href="#" class="article-link" @click.prevent="goDetail(article.articleId)">
+                            <span v-if="article.visibility === 'PRIVATE'" style="margin-right: 4px;">🔒</span>
+                            {{ article.title }}
+                        </a>
                     </td>
                     <td class="td-author">{{ article.author }}</td>
                     <td class="td-date">{{ article.date }}</td>

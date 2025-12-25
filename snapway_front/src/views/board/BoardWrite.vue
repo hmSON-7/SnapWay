@@ -29,6 +29,13 @@
           </select>
         </div>
 
+        <div class="field checkbox-field">
+            <label class="checkbox-label">
+                <input type="checkbox" v-model="isSecret" />
+                <span class="text">🔒 나만 보기 (비공개)</span>
+            </label>
+        </div>
+
         <div class="field">
           <label class="field-label" id="content-label">내용</label>
           <div v-if="tripData && tripData.records && tripData.records.length" class="trip-map-panel">
@@ -93,9 +100,19 @@ const form = ref({
   title: '',
   category: '',
   content: '',
+  visibility: 'PUBLIC'
 });
+
+const isSecret = ref(false);
+
 const isAiTrip = computed(() => Number.isFinite(aiTripId.value) && aiTripId.value > 0);
 const hasTripPath = computed(() => tripPath.value.length > 0);
+
+watch(() => form.value.category, (newVal) => {
+    if (newVal !== '여행 기록') {
+        isSecret.value = false;
+    }
+});
 
 const goBack = () => {
   router.push({ name: 'board' });
@@ -143,6 +160,12 @@ const loadAiDraft = () => {
     aiTripId.value = Number(parsed.tripId) || null;
     form.value.title = parsed.title ?? '';
     form.value.content = normalizeImageUrls(parsed.content ?? '');
+
+    if (parsed.visibility === 'PRIVATE') {
+        form.value.category = '여행 기록'; // 혹시 모르니 카테고리도 세팅
+        isSecret.value = true;
+    }
+    
     if (aiTripId.value) {
       tagValue.value = `trip:${aiTripId.value}`;
     }
@@ -309,8 +332,11 @@ const onSubmit = async () => {
   formData.append('content', form.value.content.trim());
   formData.append('category', form.value.category);
 
-  // tags는 빈 문자열이므로 추가하지 않음 (optional)
-  // formData.append('tags', '');
+  let visibilityValue = 'PUBLIC';
+  if (form.value.category === '여행 기록' && isSecret.value) {
+      visibilityValue = 'PRIVATE';
+  }
+  formData.append('visibility', visibilityValue);
 
   // 디버깅용 로그
   console.log('=== 전송할 데이터 ===');
@@ -341,6 +367,11 @@ const loadArticle = async () => {
     form.value.title = loaded.title ?? '';
     form.value.category = loaded.category ?? '';
     form.value.content = normalizeImageUrls(loaded.content ?? '');
+
+    if (loaded.category === '여행 기록' && loaded.visibility === 'PRIVATE') {
+        isSecret.value = true;
+    }
+    
     tagValue.value = loaded.tags ?? '';
     const derivedTripId = extractTripId(tagValue.value);
     if (derivedTripId) {
