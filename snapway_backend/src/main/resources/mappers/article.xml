@@ -112,9 +112,15 @@
 	</insert>
 
 	<select id="getReply" parameterType="long" resultType="Reply">
-		SELECT *
-		FROM reply
-		WHERE article_id = #{articleId}
+	    SELECT 
+	        r.reply_id,
+	        r.article_id,
+	        r.replier_id,
+	        r.content,
+	        r.replied_at,
+	        m.username AS replier_name  FROM reply r
+	    INNER JOIN member m ON r.replier_id = m.id  WHERE r.article_id = #{articleId}
+	    ORDER BY r.replied_at ASC
 	</select>
 
 	<delete id="deleteReply">
