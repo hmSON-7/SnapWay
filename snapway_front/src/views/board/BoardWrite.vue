@@ -103,6 +103,7 @@ const allCategories = [
   { value: 'qna', label: '질문' },
   { value: 'mate', label: '동행 구하기' },
   { value: 'tip', label: '여행 팁' },
+  { value: 'notice', label: '공지' }
 ];
 
 // --- Computed Properties ---
@@ -121,10 +122,20 @@ const isTripMode = computed(() => {
 // 여행 기록 모드이면 -> '여행 기록'만 표시
 // 일반 모드이면 -> '여행 기록'을 제외한 나머지 표시
 const filteredCategories = computed(() => {
+  // 1. 전체 목록 기준
+  let cats = allCategories;
+
+  // [추가됨] 관리자가 아니면 '공지(notice)' 제거
+  // (DB 스키마상 role은 'ADMIN' 또는 'USER')
+  if (authStore.user?.role !== 'ADMIN') {
+    cats = cats.filter(c => c.value !== 'notice');
+  }
+
+  // 2. 여행 기록 모드 로직 (기존 유지)
   if (isTripMode.value) {
-    return allCategories.filter(c => c.value === 'review');
+    return cats.filter(c => c.value === 'review');
   } else {
-    return allCategories.filter(c => c.value !== 'review');
+    return cats.filter(c => c.value !== 'review');
   }
 });
 
