@@ -1,0 +1,18 @@
+
+> snapway_front@0.0.0 dev
+> vite --host --port 45173
+
+
+  VITE v7.2.6  ready in 655 ms
+
+  ➜  Local:   http://localhost:45173/
+  ➜  Network: http://192.168.0.8:45173/
+  ➜  Vue DevTools: Open http://localhost:45173/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Alt(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+1:50:45 AM [vite] (client) hmr update /src/views/board/BoardDetail.vue
+npm warn Unknown cli config "portr45174" (host--:portr45174). This will stop working in the next major version of npm.
+npm error Missing script: "dev--"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /home/deck/.npm/_logs/2025-12-24T17_10_45_426Z-debug-0.log
