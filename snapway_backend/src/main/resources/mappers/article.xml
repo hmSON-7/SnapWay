@@ -16,11 +16,9 @@
 
 		<result column="hits" property="hits"></result>
 		<result column="uploaded_at" property="uploadedAt"></result>
-		<result column="category" property="category"></result>
-		<result column="hits" property="hits"></result>
+		<result column="visibility" property="visibility"></result> 
 	</resultMap>
 
-	<!-- 전체 게시판 조회 -->
 	<select id="findAll" resultMap="articleMap">
 		SELECT
 			article_id,
@@ -32,12 +30,17 @@
 			content,
 			likes,
 			hits,
-			uploaded_at
-		FROM article
+			uploaded_at,
+			visibility  FROM article
+			
+			WHERE visibility = 'PUBLIC'
+		    <if test="userId != null">
+		        OR author_id = #{userId}
+		    </if>
+			
 		ORDER BY article_id DESC;
 	</select>
 
-	<!-- 게시글 상세 조회 -->
 	<select id="getArticle" parameterType="long" resultMap="articleMap">
 		SELECT
 			article_id,
@@ -49,12 +52,10 @@
 			content,
 			likes,
 			hits,
-			uploaded_at
-		FROM article
+			uploaded_at,
+			visibility FROM article
 		WHERE article_id = #{articleId}
 	</select>
-
-	<!-- 게시글 등록 -->
 
 	<insert id="saveArticle"  
 		useGeneratedKeys="true" keyProperty="articleId" keyColumn="article_id">
@@ -67,8 +68,8 @@
 			content,
 			likes,
 			hits,
-			uploaded_at
-		)
+			uploaded_at,
+			visibility )
 		VALUES(
 			#{article.title},
 			#{article.tags},
@@ -78,57 +79,50 @@
 			#{article.content},
 			#{article.likes},
 			#{article.hits},
-			NOW()
+			NOW(),
+			COALESCE(#{article.visibility}, 'PUBLIC') 
 		)
-		
 	</insert>
 
-	<!-- 게시글 수정 -->
 	<update id="updateArticle" parameterType="Article">
 		UPDATE article
 		SET
 			title = #{title},
 			tags = #{tags},
 			category = #{category},
-			content = #{content}
-		WHERE article_id = #{articleId}
+			content = #{content},
+			visibility = #{visibility} WHERE article_id = #{articleId}
 	</update>
 
-	<!-- 게시글 삭제 -->
 	<delete id="deleteArticle" parameterType="long">
 		DELETE FROM article
 		WHERE article_id = #{articleId}
 	</delete>
 
-	<!-- 조회수 증가 -->
 	<update id="increaseHits" parameterType="long">
 		UPDATE article
 		SET hits = hits + 1
 		WHERE article_id = #{articleId}
 	</update>
 
-	<!-- 댓글 등록 -->
 	<insert id="addReply">
 		INSERT INTO
 		reply(article_id, replier_id, content, replied_at)
 		VALUES(#{reply.articleId}, #{reply.replierId}, #{reply.content}, NOW())
 	</insert>
 
-	<!-- 댓글 조회 -->
 	<select id="getReply" parameterType="long" resultType="Reply">
 		SELECT *
 		FROM reply
 		WHERE article_id = #{articleId}
 	</select>
 
-	<!-- 댓글 삭제 -->
 	<delete id="deleteReply">
 		DELETE FROM reply
 		WHERE reply_id = #{replyId}
 		AND replier_id = #{replierId}
 	</delete>
 
-	<!-- 댓글 수정 -->
 	<update id="updateReply">
 		UPDATE reply SET content = #{reply.content}
 		WHERE reply_id = #{reply.replyId}

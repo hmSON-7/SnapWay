@@ -28,15 +28,4 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/files/**")
                 .addResourceLocations(location);
     }
-
-    // 인증,인가는 전부 spring security에게 위임
-//    @Override
-//    public void addCorsMappings(CorsRegistry registry) {
-//        registry.addMapping("/**") // 모든 경로에 대해
-//                .allowedOrigins("http://localhost:5173", "http://localhost:8080") // 허용할 클라이언트 주소 (Vue 포트 확인 필요)
-//                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 허용할 HTTP 메서드
-//                .allowedHeaders("*") // 모든 헤더 허용
-//                .allowCredentials(true) // 쿠키/인증 정보 포함 허용
-//                .maxAge(3600) // 1시간 동안 pre-flight 요청 캐싱
-//    }
 }

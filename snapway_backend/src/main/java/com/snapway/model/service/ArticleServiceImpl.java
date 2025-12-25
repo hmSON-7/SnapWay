@@ -31,8 +31,8 @@ public class ArticleServiceImpl implements ArticleService {
 	private String basePath;
 
 	@Override
-	public List<Article> findAll() {
-		return aMapper.findAll();
+	public List<Article> findAll(int userId) {
+		return aMapper.findAll(userId);
 	}
 
 	@Override
@@ -45,31 +45,6 @@ public class ArticleServiceImpl implements ArticleService {
 		int result = aMapper.saveArticle(article);
 		if (result != 1)
 			throw new RuntimeException("게시글 등록 실패");
-		
-//		int userId = article.getAuthorId();
-//		long articleId = article.getArticleId();
-//		
-//		
-//		// 이미지 파일을 temp에서 articleId폴더로 이동
-//		Path tempDir = Paths.get(basePath, String.valueOf(userId), "temp");
-//		Path articleDir = Paths.get(basePath, String.valueOf(userId), String.valueOf(articleId));
-//		
-//		// 저장할 디렉토리 생성
-//		Files.createDirectories(articleDir);
-//		
-//		// temp 디렉토리 안의 이미지 파일을 articleDir로 이동
-//		try(Stream<Path> stream = Files.list(tempDir)) {
-//			stream
-//				.filter(Files::isRegularFile)
-//				.forEach(source->{ // 일반 파일이 맞으면 그 파일을 이동시킨다.
-//					Path target = articleDir.resolve(source.getFileName());
-//					try {
-//						Files.move(source, target);
-//					} catch(Exception e) {
-//						throw new RuntimeException("이미지 이동 실패:" + source, e);
-//					}
-//				});
-//		}
 
         String userId = String.valueOf(article.getAuthorId());
         long articleId = article.getArticleId();
