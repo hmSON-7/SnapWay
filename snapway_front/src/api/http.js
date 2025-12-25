@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL;
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 // 1. 일반 API 호출용 Axios 인스턴스 생성
 const http = axios.create({

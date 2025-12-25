@@ -39,8 +39,17 @@
         </nav>
     </header>
 
-    <!-- 로그인 모달 -->
-    <LoginModal v-if="showLoginModal" @close="closeLogin" />
+    <LoginModal 
+        v-if="showLoginModal" 
+        @close="closeLogin" 
+        @open-reset="openResetFromLogin"
+    />
+    
+    <PasswordResetModal 
+        v-if="showResetModal" 
+        @close="closeReset" 
+        @open-login="openLoginFromReset"
+    />
 </template>
 
 <script setup>
@@ -48,6 +57,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import LoginModal from '@/components/LoginModal.vue'
+import PasswordResetModal from '@/components/PasswordResetModal.vue'
 import { useAuthStore } from '@/store/useAuthStore'
 import { logoutMember } from '@/api/memberApi'
 
@@ -56,13 +66,29 @@ const authStore = useAuthStore()
 const { isLoggedIn, userName } = storeToRefs(authStore)
 
 const showLoginModal = ref(false)
+const showResetModal = ref(false)
 
 const openLogin = () => {
     showLoginModal.value = true
+    showResetModal.value = false
 }
 
 const closeLogin = () => {
     showLoginModal.value = false
+}
+
+const openResetFromLogin = () => {
+    showLoginModal.value = false
+    showResetModal.value = true
+}
+
+const closeReset = () => {
+    showResetModal.value = false
+}
+
+const openLoginFromReset = () => {
+    showResetModal.value = false
+    showLoginModal.value = true
 }
 
 const goRegist = () => {
