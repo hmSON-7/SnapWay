@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.snapway.model.service.AuthService;
 import com.snapway.model.service.MemberService;
 import com.snapway.security.JwtUtil;
 import com.snapway.util.FileUtil;
@@ -34,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MemberController {
 
 	private final MemberService memberService;
+	private final AuthService authService;
 	private final FileUtil fileUtil;
 	private final JwtUtil jwtUtil;
 
@@ -101,9 +103,10 @@ public class MemberController {
 		try {
 			// 1. email, pw로 사용자 인증
 			Member loginMember = memberService.loginMember(email, password);
-			int userId = loginMember.getId();
 
 			if (loginMember != null) { // 로그인 성공 시
+				int userId = loginMember.getId();
+				
 				// 2. 권한 리스트 생성
 				List<String> roles = new ArrayList<>();
 				roles.add(loginMember.getRole().name());
@@ -111,8 +114,11 @@ public class MemberController {
 				// 3. 토큰 생성
 				String accessToken = jwtUtil.generateAccessToken(loginMember, userId, email, roles);
 				String refreshToken = jwtUtil.generateRefreshToken(email);
-
-				// 4. 클라이언트에게 전달할 데이터 생성
+				
+				// 4. Redis에 Refresh Token 저장
+				authService.saveRefreshToken(email, refreshToken);
+				
+				// 5. 클라이언트에게 전달할 데이터 생성
 				resultMap.put("userInfo", loginMember);
 				resultMap.put("accessToken", accessToken);
 				resultMap.put("refreshToken", refreshToken);
@@ -127,7 +133,7 @@ public class MemberController {
 			resultMap.put("message", e.getMessage());
 			status = HttpStatus.INTERNAL_SERVER_ERROR;
 		}
-		System.out.println("로그인 성공~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+		
 		return new ResponseEntity<>(resultMap, status);
 	}
 
@@ -165,10 +171,17 @@ public class MemberController {
 	}
 
 	@PostMapping("/logout")
-	public ResponseEntity<String> logout() {
-		log.debug("로그아웃 요청 - 클라이언트 토큰 삭제 필요");
-		return ResponseEntity.ok("success");
-	}
+    public ResponseEntity<String> logout(Authentication authentication) {
+        log.debug("로그아웃 요청");
+        if(authentication != null) {
+        	String email = authentication.getName();
+        	authService.logout(email);
+        	
+        	log.debug("Redis Refresh Token 삭제 완료: {}", email);
+        }
+        
+        return ResponseEntity.ok("success");
+    }
 
 	/**
 	 * 내 정보 조회 (JWT 기반)
@@ -267,6 +280,9 @@ public class MemberController {
 			int result = memberService.deleteMember(email);
 
 			if (result > 0) {
+				// 탈퇴 시에도 Redis 토큰 삭제
+            	authService.logout(email);
+				
 				resultMap.put("message", "success");
 				return new ResponseEntity<>(resultMap, HttpStatus.OK);
 			} else {

@@ -1,74 +1,21 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { fetchArticles } from '@/api/articleApi';
+import { useAuthStore } from '@/store/useAuthStore';
 
 const router = useRouter();
+const route = useRoute();
+const authStore = useAuthStore();
 const articles = ref([]);
 const selectedCategory = ref('all');
+const myOnly = ref(false);
 const isLoading = ref(false);
 const loadError = ref('');
 
-// 더미 데이터 (추후 DB 연동 시 교체)
-const dummyArticles = [
-    {
-        articleId: 5,
-        category: '여행리뷰',
-        categoryClass: 'cat-review',
-        title: '제주도 3박 4일 완벽 여행기',
-        author: '여행러버',
-        date: '2024-03-15',
-        hits: 128,
-    },
-    {
-        articleId: 4,
-        category: '여행 팁',
-        categoryClass: 'cat-tip',
-        title: '부산 맛집 추천 BEST 10',
-        author: '맛집헌터',
-        date: '2024-03-14',
-        hits: 95,
-    },
-    {
-        articleId: 3,
-        category: '질문',
-        categoryClass: 'cat-qna',
-        title: '강원도 숙소 추천 부탁드려요',
-        author: '초보여행자',
-        date: '2024-03-10',
-        hits: 45,
-    },
-    {
-        articleId: 2,
-        category: '동행 구하기',
-        categoryClass: 'cat-mate',
-        title: '내일 전주 가실 분?',
-        author: '혼자여행',
-        date: '2024-03-05',
-        hits: 12,
-    },
-    {
-        articleId: 1,
-        category: '공지',
-        categoryClass: 'cat-notice',
-        title: '커뮤니티 이용 수칙 안내',
-        author: '관리자',
-        date: '2024-03-01',
-        hits: 999,
-    },
-    {
-        articleId: 0,
-        category: '자유',
-        categoryClass: 'cat-free',
-        title: '여행 준비 꿀팁 모아봅시다',
-        author: '자유글러',
-        date: '2024-02-28',
-        hits: 34,
-    },
-];
-
 const categoryLabelMap = {
-    review: '여행리뷰',
+    review: '여행 기록',
+    record: '여행 기록',
     tip: '여행 팁',
     qna: '질문',
     mate: '동행 구하기',
@@ -77,7 +24,7 @@ const categoryLabelMap = {
 };
 
 const categoryClassMap = {
-    여행리뷰: 'cat-review',
+    '여행 기록': 'cat-record',
     '여행 팁': 'cat-tip',
     질문: 'cat-qna',
     '동행 구하기': 'cat-mate',
@@ -106,7 +53,7 @@ const formatDate = (value) => {
 
 const categories = [
     { label: '전체', value: 'all' },
-    { label: '여행리뷰', value: '여행리뷰' },
+    { label: '여행 기록', value: '여행 기록' },
     { label: '여행 팁', value: '여행 팁' },
     { label: '질문', value: '질문' },
     { label: '동행 구하기', value: '동행 구하기' },
@@ -116,15 +63,29 @@ const categories = [
 
 const filteredArticles = computed(() => {
     if (selectedCategory.value === 'all') {
-        return articles.value;
+        return myOnly.value ? articles.value.filter(isMine) : articles.value;
     }
-    return articles.value.filter(
-        (article) => article.category === selectedCategory.value,
-    );
+    return articles.value.filter((article) => {
+        const matchesCategory = article.category === selectedCategory.value;
+        if (!matchesCategory) return false;
+        return myOnly.value ? isMine(article) : true;
+    });
 });
+
+const isMine = (article) => {
+    const currentId = Number(authStore.loginUser?.id);
+    if (!Number.isFinite(currentId)) return false;
+    return Number(article.authorId) === currentId;
+};
 
 const setCategory = (value) => {
     selectedCategory.value = value;
+    if (value !== '여행 기록') {
+        myOnly.value = false;
+    }
+    if (!authStore.isLoggedIn) {
+        myOnly.value = false;
+    }
 };
 
 const loadArticles = async () => {
@@ -133,7 +94,11 @@ const loadArticles = async () => {
     try {
         const { data } = await fetchArticles();
         const list = Array.isArray(data) ? data : data?.articleList ?? [];
-        articles.value = list.map((article) => {
+        if (!list.length) {
+            articles.value = [];
+            return;
+        }
+        const apiArticles = list.map((article) => {
             const category = normalizeCategory(article.category);
             return {
                 articleId: article.articleId,
@@ -141,15 +106,40 @@ const loadArticles = async () => {
                 categoryClass: toCategoryClass(category),
                 title: article.title,
                 author: article.authorId ?? '익명',
+                authorId: article.authorId ?? null,
                 date: formatDate(article.uploadedAt),
                 hits: article.hits ?? 0,
             };
         });
+        articles.value = apiArticles;
+
     } catch (error) {
         loadError.value = '게시글을 불러오지 못했습니다.';
-        articles.value = dummyArticles;
+        articles.value = [];
     } finally {
         isLoading.value = false;
+    }
+};
+
+const applyQueryFilters = () => {
+    const categoryParam = route.query.category;
+    if (categoryParam) {
+        const normalized =
+            categoryLabelMap[String(categoryParam)] ?? String(categoryParam);
+        const exists = categories.some((item) => item.value === normalized);
+        if (exists) {
+            selectedCategory.value = normalized;
+        }
+    }
+
+    if (route.query.my) {
+        myOnly.value = route.query.my === '1' || route.query.my === 'true';
+    }
+    if (selectedCategory.value !== '여행 기록') {
+        myOnly.value = false;
+    }
+    if (!authStore.isLoggedIn) {
+        myOnly.value = false;
     }
 };
 
@@ -162,8 +152,16 @@ onMounted(() => {
     //   return;
     // }
 
+    applyQueryFilters();
     loadArticles();
 });
+
+watch(
+    () => route.query,
+    () => {
+        applyQueryFilters();
+    },
+);
 
 const goWrite = () => {
     router.push({ name: 'boardWrite' });
@@ -204,6 +202,14 @@ const goDetail = (articleId) => {
                         {{ category.label }}
                         </button>
                     </div>
+                    </th>
+                </tr>
+                <tr v-if="selectedCategory === '여행 기록'" class="board-filter-row record-filter-row">
+                    <th colspan="5">
+                    <label class="record-filter">
+                        <input type="checkbox" v-model="myOnly" :disabled="!authStore.isLoggedIn" />
+                        내가 작성한 여행 기록만 보기
+                    </label>
                     </th>
                 </tr>
                 <tr>
@@ -364,6 +370,30 @@ const goDetail = (articleId) => {
     box-shadow: 0 6px 16px rgba(29, 78, 216, 0.25);
 }
 
+.record-filter-row th {
+    padding: 10px 16px;
+    background: rgba(226, 232, 240, 0.65);
+}
+
+.record-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.record-filter input {
+    width: 16px;
+    height: 16px;
+}
+
+.record-filter input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 /* 컬럼별 스타일 */
 .th-hits, .td-hits, .th-cat, .td-cat, .th-author, .td-author, .th-date, .td-date {
     text-align: center;
@@ -404,12 +434,12 @@ const goDetail = (articleId) => {
     font-weight: 600;
 }
 
-.cat-review { background: #dcfce7; color: #166534; }
+.cat-record { background: #dcfce7; color: #166534; }
 .cat-tip { background: #e0f2fe; color: #075985; }
 .cat-qna { background: #fef9c3; color: #854d0e; }
 .cat-mate { background: #e0e7ff; color: #3730a3; }
 .cat-notice { background: #fee2e2; color: #991b1b; }
-.cat-free { background: #f8fafc; color: #475569; }
+.cat-free { background: #ccfbf1; color: #0f766e; }
 
 /* 푸터 영역 */
 .board-footer {

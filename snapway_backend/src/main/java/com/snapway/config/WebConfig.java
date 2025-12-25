@@ -1,13 +1,35 @@
 package com.snapway.config;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-	// 인증,인가는 전부 spring security에게 위임
+    @Value("${spring.servlet.multipart.location}")
+    private String basePath;
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        if (basePath == null || basePath.isBlank()) {
+            return;
+        }
+        Path uploadPath = Paths.get(basePath).toAbsolutePath().normalize();
+        String location = uploadPath.toUri().toString();
+        if (!location.endsWith("/")) {
+            location += "/";
+        }
+        registry.addResourceHandler("/files/**")
+                .addResourceLocations(location);
+    }
+
+    // 인증,인가는 전부 spring security에게 위임
 //    @Override
 //    public void addCorsMappings(CorsRegistry registry) {
 //        registry.addMapping("/**") // 모든 경로에 대해
@@ -15,6 +37,6 @@ public class WebConfig implements WebMvcConfigurer {
 //                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 허용할 HTTP 메서드
 //                .allowedHeaders("*") // 모든 헤더 허용
 //                .allowCredentials(true) // 쿠키/인증 정보 포함 허용
-//                .maxAge(3600); // 1시간 동안 pre-flight 요청 캐싱
+//                .maxAge(3600) // 1시간 동안 pre-flight 요청 캐싱
 //    }
 }

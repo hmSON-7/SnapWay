@@ -16,6 +16,7 @@ const routes = [
   { path: "/board", name: "board", component: BoardView },
   { path: "/board/write", name: "boardWrite", component: BoardWrite },
   { path: "/board/:articleId", name: "boardDetail", component: BoardDetail },
+  { path: "/board/:articleId/edit", name: "boardEdit", component: BoardWrite },
   { path: "/record", name: "record", component: TravelRecord },
 ];
 

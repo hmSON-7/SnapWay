@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,9 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.snapway.model.dto.Member;
 import com.snapway.model.dto.Trip;
+import com.snapway.model.service.MemberService;
 import com.snapway.model.service.TripService;
 
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TripController {
 
     private final TripService tripService;
+    private final MemberService memberService;
 
     /**
      * 1. AI 여행 기록 자동 생성
@@ -36,17 +38,21 @@ public class TripController {
     public ResponseEntity<?> createAutoTrip(
             @RequestParam("title") String title,
             @RequestParam("files") List<MultipartFile> files,
-            HttpSession session
+            Authentication authentication
     ) {
-    	
-    	Member loginUser = (Member) session.getAttribute("loginUser");
-        if (loginUser == null) {
+        if (authentication == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
         }
 
-        log.info("AI 여행 기록 생성 요청 - 사용자: {}, 제목: {}, 파일 수: {}", loginUser.getId(), title, files.size());
-
         try {
+            String email = authentication.getName();
+            Member loginUser = memberService.getMemberInfo(email);
+            if (loginUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
+            }
+
+            log.info("AI 여행 기록 생성 요청 - 사용자: {}, 제목: {}, 파일 수: {}", loginUser.getId(), title, files.size());
+
             Trip createdTrip = tripService.createAutoTrip(loginUser.getId(), title, files);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdTrip);
         } catch (IllegalArgumentException e) {
@@ -63,13 +69,17 @@ public class TripController {
      * 2. 내 여행 기록 목록 조회
      */
     @GetMapping("/list")
-    public ResponseEntity<?> getMyTripList(HttpSession session) {
-        Member loginUser = (Member) session.getAttribute("loginUser");
-        if (loginUser == null) {
+    public ResponseEntity<?> getMyTripList(Authentication authentication) {
+        if (authentication == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
         }
 
         try {
+            String email = authentication.getName();
+            Member loginUser = memberService.getMemberInfo(email);
+            if (loginUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
+            }
             List<Trip> trips = tripService.getMyTripList(loginUser.getId());
             return ResponseEntity.ok(trips);
         } catch (Exception e) {

@@ -59,17 +59,26 @@ public class SecurityConfig {
                 // 폼로그인/Basic 비활성화
                 .formLogin(form -> form.disable()).httpBasic(basic -> basic.disable())
 
-                // 권한 설정
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/member/regist", "/api/member/login",
-                                "/api/member/logout", "/api/member/check-email", "/error/**",
-                                "/api/member/fetchMyInfo", "/api/csrf", // csrf 토큰 발급용
-
-                                // 테스트를 위한 임시 개방
-                                "/api/article/**", "/api/trip/**", "/api/auth/password/**")
-                        .permitAll().anyRequest().authenticated())
-
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        // 권한 설정
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(
+                "/api/member/regist",
+                "/api/member/login",
+                "/api/member/logout",
+                "/api/member/check-email",
+                "/error/**",
+                "/api/member/fetchMyInfo",
+                "/api/csrf",   // csrf 토큰 발급용
+                "/api/article/**",
+                // 테스트를 위한 임시 개방
+                "/api/trip/**",
+                "/api/auth/password/**",
+                "/api/auth/reissue"
+            ).permitAll()
+            .anyRequest().authenticated()
+        )
+        
+        .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
 
         return http.build();
