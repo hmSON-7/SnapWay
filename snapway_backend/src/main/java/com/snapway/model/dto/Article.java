@@ -17,6 +17,7 @@ public class Article {
 	private String title;
 	private String tags;
 	private int authorId;
+	private String authorName;
 
 	private String category;
 

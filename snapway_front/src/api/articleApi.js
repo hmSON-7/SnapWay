@@ -6,13 +6,18 @@ export const fetchArticles = () => http.get("/article/articleList");
 export const fetchArticle = (articleId) =>
   http.get("/article/article", { params: { articleId } });
 
-export const createArticle = (formData) =>
-  http.post("/article", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+export const createArticle = (formData) => {
+  const accessToken = localStorage.getItem("accessToken");
 
-export const updateArticle = (article) =>
-  http.put("/article/article", article);
+  return http.post("/article/saveArticle", formData, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+};
+
+
+export const updateArticle = (article) => http.put("/article/article", article);
 
 export const deleteArticle = (articleId) =>
   http.delete("/article/article", { params: { articleId } });
