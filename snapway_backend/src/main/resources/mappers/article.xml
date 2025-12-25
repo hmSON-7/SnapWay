@@ -9,6 +9,7 @@
 		<result column="title" property="title"></result>
 		<result column="tags" property="tags"></result>
 		<result column="author_id" property="authorId"></result>
+		<result column="author_name" property="authorName"></result>
 		<result column="category" property="category"></result>
 		<result column="content" property="content"></result>
 		<result column="likes" property="likes"></result>
@@ -26,6 +27,7 @@
 			title,
 			tags,
 			author_id,
+			author_name,
 			category,
 			content,
 			likes,
@@ -42,6 +44,7 @@
 			title,
 			tags,
 			author_id,
+			author_name,
 			category,
 			content,
 			likes,
@@ -59,6 +62,7 @@
 			title,
 			tags,
 			author_id,
+			author_name,
 			category,
 			content,
 			likes,
@@ -69,6 +73,7 @@
 			#{article.title},
 			#{article.tags},
 			#{article.authorId},
+			#{article.authorName},
 			#{article.category},
 			#{article.content},
 			#{article.likes},

@@ -9,13 +9,7 @@
       <form class="board-write-card" @submit.prevent="onSubmit">
         <div class="field">
           <label class="field-label" for="title">제목</label>
-          <input
-            id="title"
-            v-model="form.title"
-            class="field-input"
-            type="text"
-            placeholder="제목을 입력해주세요"
-          />
+          <input id="title" v-model="form.title" class="field-input" type="text" placeholder="제목을 입력해주세요" />
         </div>
 
         <div class="field">
@@ -122,6 +116,7 @@ onBeforeUnmount(() => {
 const onSubmit = async () => {
   submitError.value = '';
   syncContentFromEditor();
+
   if (!form.value.title.trim()) {
     submitError.value = '제목을 입력해주세요.';
     return;
@@ -135,37 +130,37 @@ const onSubmit = async () => {
     return;
   }
 
-  const articlePayload = {
-    title: form.value.title.trim(),
-    category: form.value.category,
-    content: form.value.content.trim(),
-    tags: '',
-    authorId: (() => {
-      const raw = Number(authStore.loginUser?.id);
-      return Number.isFinite(raw) && raw > 0 ? raw : 1;
-    })(),
-    likes: 0,
-    hits: 0,
-  };
-
+  // FormData 생성
   const formData = new FormData();
-  formData.append(
-    'article',
-    new Blob([JSON.stringify(articlePayload)], { type: 'application/json' }),
-  );
+  formData.append('title', form.value.title.trim());
+  formData.append('content', form.value.content.trim());
+  formData.append('category', form.value.category);
+
+  // tags는 빈 문자열이므로 추가하지 않음 (optional)
+  // formData.append('tags', '');
+
+  // 디버깅용 로그
+  console.log('=== 전송할 데이터 ===');
+  console.log('title:', form.value.title.trim());
+  console.log('category:', form.value.category);
+  console.log('content 길이:', form.value.content.trim().length);
 
   try {
     isSubmitting.value = true;
-    await createArticle(formData);
+    const response = await createArticle(formData);
+    console.log('성공:', response.data);
+    alert('게시글이 등록되었습니다!');
     router.push({ name: 'board' });
   } catch (error) {
     submitError.value = '게시글 등록에 실패했습니다.';
     console.error('게시글 등록 실패:', error);
+    console.error('에러 응답:', error.response?.data);
   } finally {
     isSubmitting.value = false;
   }
 };
 </script>
+
 
 <style scoped>
 .board-write-page {

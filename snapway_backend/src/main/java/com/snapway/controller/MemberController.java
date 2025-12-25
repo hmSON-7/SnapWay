@@ -48,7 +48,7 @@ public class MemberController {
 		Map<String, Object> resultMap = new HashMap<>();
 		HttpStatus status;
 
-try {
+		try {
 			// 0. 이메일 중복 체크 (idCheck가 true면 중복, false면 사용 가능)
 			boolean isDuplicated = memberService.idCheck(member.getEmail());
 			if (isDuplicated) {
@@ -59,7 +59,7 @@ try {
 
 			// 1. 회원가입 시도
 			int result = memberService.registMember(member);
-			
+
 			// 사용자의 id로 된 경로를 서버에 생성.
 			fileUtil.createUserDirectory(member.getId());
 
@@ -102,24 +102,23 @@ try {
 			// 1. email, pw로 사용자 인증
 			Member loginMember = memberService.loginMember(email, password);
 			int userId = loginMember.getId();
-			
-			if(loginMember != null) { // 로그인 성공 시
+
+			if (loginMember != null) { // 로그인 성공 시
 				// 2. 권한 리스트 생성
 				List<String> roles = new ArrayList<>();
 				roles.add(loginMember.getRole().name());
-				
+
 				// 3. 토큰 생성
-				String accessToken = jwtUtil.generateAccessToken(userId, email, roles);
+				String accessToken = jwtUtil.generateAccessToken(loginMember, userId, email, roles);
 				String refreshToken = jwtUtil.generateRefreshToken(email);
-				
+
 				// 4. 클라이언트에게 전달할 데이터 생성
 				resultMap.put("userInfo", loginMember);
 				resultMap.put("accessToken", accessToken);
 				resultMap.put("refreshToken", refreshToken);
 				resultMap.put("message", "success");
 				status = HttpStatus.OK;
-			}
-			else { // 로그인 실패 시
+			} else { // 로그인 실패 시
 				resultMap.put("message", "fail");
 				status = HttpStatus.UNAUTHORIZED;
 			}
@@ -166,116 +165,118 @@ try {
 	}
 
 	@PostMapping("/logout")
-    public ResponseEntity<String> logout() {
-        log.debug("로그아웃 요청 - 클라이언트 토큰 삭제 필요");
-        return ResponseEntity.ok("success");
-    }
+	public ResponseEntity<String> logout() {
+		log.debug("로그아웃 요청 - 클라이언트 토큰 삭제 필요");
+		return ResponseEntity.ok("success");
+	}
 
 	/**
-     * 내 정보 조회 (JWT 기반)
-     */
-    @GetMapping("/fetchMyInfo")
-    public ResponseEntity<?> fetchMyInfo(Authentication authentication) {
-    	log.debug("마이페이지 접근 요청");
-        // Authentication 객체가 null이면 필터에서 걸러졌거나 인증 실패 상태
-        if (authentication == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
-        }
+	 * 내 정보 조회 (JWT 기반)
+	 */
+	@GetMapping("/fetchMyInfo")
+	public ResponseEntity<?> fetchMyInfo(Authentication authentication) {
+		log.debug("마이페이지 접근 요청");
+		// Authentication 객체가 null이면 필터에서 걸러졌거나 인증 실패 상태
+		if (authentication == null) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
+		}
 
-        log.debug("인증 성공");
-        try {
-            String email = authentication.getName(); // JWT Payload의 Subject(email) 추출
-            Member member = memberService.getMemberInfo(email);
-            
-            if (member == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("회원 정보를 찾을 수 없습니다.");
-            }
-            return ResponseEntity.ok(member);
-            
-        } catch (Exception e) {
-            log.error("정보 조회 에러: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("에러 발생");
-        }
-    }
-	
-    /**
-     * 회원 정보 수정 (PUT /api/member/update)
-     */
-    @PutMapping("/update")
-    public ResponseEntity<Map<String, Object>> updateMember(@RequestBody Member member, Authentication authentication) {
-        Map<String, Object> resultMap = new HashMap<>();
-        
-        if (authentication == null) {
-            resultMap.put("message", "unauthorized");
-            return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
-        }
+		log.debug("인증 성공");
+		try {
+			String email = authentication.getName(); // JWT Payload의 Subject(email) 추출
+			Member member = memberService.getMemberInfo(email);
 
-        try {
-            // 1. 토큰에서 이메일 추출
-            String email = authentication.getName();
-            
-            // 2. DB에서 현재 사용자 정보 조회 (PK인 id를 얻기 위함)
-            Member dbMember = memberService.getMemberInfo(email);
-            if (dbMember == null) {
-                resultMap.put("message", "user_not_found");
-                return new ResponseEntity<>(resultMap, HttpStatus.NOT_FOUND);
-            }
+			if (member == null) {
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).body("회원 정보를 찾을 수 없습니다.");
+			}
+			return ResponseEntity.ok(member);
 
-            // 3. 수정할 객체에 ID와 이메일 강제 주입 (변조 방지)
-            member.setId(dbMember.getId());
-            member.setEmail(email);
+		} catch (Exception e) {
+			log.error("정보 조회 에러: ", e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("에러 발생");
+		}
+	}
 
-            // 4. 정보 수정 요청
-            int result = memberService.updateMember(member);
-            
-            if (result > 0) {
-                resultMap.put("message", "success");
-                return new ResponseEntity<>(resultMap, HttpStatus.OK);
-            } else {
-                resultMap.put("message", "fail");
-                return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
-            }
-            
-        } catch (Exception e) {
-            log.error("회원 수정 에러: ", e);
-            resultMap.put("message", "error");
-            return new ResponseEntity<>(resultMap, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    
-    /**
-     * 회원 탈퇴 (DELETE /api/member/{email})
-     */
-    @DeleteMapping("/{email}")
-    public ResponseEntity<Map<String, Object>> deleteMember(@PathVariable String email, Authentication authentication) {
-        Map<String, Object> resultMap = new HashMap<>();
-        
-        if (authentication == null) {
-            resultMap.put("message", "unauthorized");
-            return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
-        }
+	/**
+	 * 회원 정보 수정 (PUT /api/member/update)
+	 */
+	@PutMapping("/update")
+	public ResponseEntity<Map<String, Object>> updateMember(@RequestBody Member member,
+			Authentication authentication) {
+		Map<String, Object> resultMap = new HashMap<>();
 
-        // 본인 확인: 토큰의 이메일과 삭제 요청한 이메일이 일치하는지 확인
-        String tokenEmail = authentication.getName();
-        if (!tokenEmail.equals(email)) {
-             resultMap.put("message", "forbidden");
-             return new ResponseEntity<>(resultMap, HttpStatus.FORBIDDEN);
-        }
+		if (authentication == null) {
+			resultMap.put("message", "unauthorized");
+			return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+		}
 
-        try {
-            int result = memberService.deleteMember(email);
-            
-            if (result > 0) {
-                resultMap.put("message", "success");
-                return new ResponseEntity<>(resultMap, HttpStatus.OK);
-            } else {
-                resultMap.put("message", "fail");
-                return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
-            }
-        } catch (Exception e) {
-            log.error("회원 탈퇴 에러: ", e);
-            resultMap.put("message", "error");
-            return new ResponseEntity<>(resultMap, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
+		try {
+			// 1. 토큰에서 이메일 추출
+			String email = authentication.getName();
+
+			// 2. DB에서 현재 사용자 정보 조회 (PK인 id를 얻기 위함)
+			Member dbMember = memberService.getMemberInfo(email);
+			if (dbMember == null) {
+				resultMap.put("message", "user_not_found");
+				return new ResponseEntity<>(resultMap, HttpStatus.NOT_FOUND);
+			}
+
+			// 3. 수정할 객체에 ID와 이메일 강제 주입 (변조 방지)
+			member.setId(dbMember.getId());
+			member.setEmail(email);
+
+			// 4. 정보 수정 요청
+			int result = memberService.updateMember(member);
+
+			if (result > 0) {
+				resultMap.put("message", "success");
+				return new ResponseEntity<>(resultMap, HttpStatus.OK);
+			} else {
+				resultMap.put("message", "fail");
+				return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
+			}
+
+		} catch (Exception e) {
+			log.error("회원 수정 에러: ", e);
+			resultMap.put("message", "error");
+			return new ResponseEntity<>(resultMap, HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
+	 * 회원 탈퇴 (DELETE /api/member/{email})
+	 */
+	@DeleteMapping("/{email}")
+	public ResponseEntity<Map<String, Object>> deleteMember(@PathVariable String email,
+			Authentication authentication) {
+		Map<String, Object> resultMap = new HashMap<>();
+
+		if (authentication == null) {
+			resultMap.put("message", "unauthorized");
+			return new ResponseEntity<>(resultMap, HttpStatus.UNAUTHORIZED);
+		}
+
+		// 본인 확인: 토큰의 이메일과 삭제 요청한 이메일이 일치하는지 확인
+		String tokenEmail = authentication.getName();
+		if (!tokenEmail.equals(email)) {
+			resultMap.put("message", "forbidden");
+			return new ResponseEntity<>(resultMap, HttpStatus.FORBIDDEN);
+		}
+
+		try {
+			int result = memberService.deleteMember(email);
+
+			if (result > 0) {
+				resultMap.put("message", "success");
+				return new ResponseEntity<>(resultMap, HttpStatus.OK);
+			} else {
+				resultMap.put("message", "fail");
+				return new ResponseEntity<>(resultMap, HttpStatus.BAD_REQUEST);
+			}
+		} catch (Exception e) {
+			log.error("회원 탈퇴 에러: ", e);
+			resultMap.put("message", "error");
+			return new ResponseEntity<>(resultMap, HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 }

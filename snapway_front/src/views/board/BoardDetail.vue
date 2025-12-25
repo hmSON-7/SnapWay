@@ -14,13 +14,14 @@
           </span>
           <h2 class="detail-title">{{ article.title }}</h2>
           <div class="detail-meta">
-            <span>작성자 {{ article.authorId ?? '익명' }}</span>
+            <span>작성자 {{ article.authorName ?? '익명' }}</span>
             <span>{{ formattedDate }}</span>
             <span>조회 {{ article.hits ?? 0 }}</span>
           </div>
         </div>
 
         <div class="detail-content">
+          <!-- Toast UI Viewer 사용 -->
           <div ref="viewerRoot" class="viewer-root"></div>
         </div>
 
@@ -87,6 +88,9 @@ const loadArticle = async () => {
   try {
     const { data } = await fetchArticle(route.params.articleId);
     article.value = data?.article ?? null;
+
+    console.log('content:', article.value?.content);
+
   } catch (error) {
     console.error('게시글 조회 실패:', error);
   } finally {
@@ -120,6 +124,7 @@ const goBack = () => {
 </script>
 
 <style scoped>
+/* 기존 스타일 유지 */
 .board-detail-page {
   min-height: calc(100vh - 80px);
   display: flex;
@@ -211,12 +216,35 @@ const goBack = () => {
   font-weight: 600;
 }
 
-.cat-review { background: #dcfce7; color: #166534; }
-.cat-tip { background: #e0f2fe; color: #075985; }
-.cat-qna { background: #fef9c3; color: #854d0e; }
-.cat-mate { background: #e0e7ff; color: #3730a3; }
-.cat-notice { background: #fee2e2; color: #991b1b; }
-.cat-free { background: #f8fafc; color: #475569; }
+.cat-review {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.cat-tip {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.cat-qna {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.cat-mate {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.cat-notice {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cat-free {
+  background: #f8fafc;
+  color: #475569;
+}
 
 @media (max-width: 768px) {
   .board-detail-page {
