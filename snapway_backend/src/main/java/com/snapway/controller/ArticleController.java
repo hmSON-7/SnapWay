@@ -1,7 +1,6 @@
 package com.snapway.controller;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -9,43 +8,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.FileSystemResource;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.snapway.model.dto.Article;
 import com.snapway.model.dto.Reply;
 import com.snapway.model.service.ArticleService;
-import com.snapway.model.service.MemberService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -66,14 +50,32 @@ public class ArticleController {
 	@Value("${spring.servlet.multipart.location}")
 	private String basePath;
 
-	private final ObjectMapper objectMapper;
-
 	@GetMapping("/articleList")
-	public ResponseEntity<List<Article>> getArticleList() {
-		List<Article> articleList = aService.findAll();
+    public ResponseEntity<List<Article>> getArticleList(Authentication auth) { // Authentication 주입 받음
+        
+        Integer currentUserId = null;
 
-		return ResponseEntity.status(HttpStatus.OK).body(articleList);
-	}
+        // 로그인 상태라면 userId 추출
+        if (auth != null && auth.isAuthenticated()) {
+            try {
+                Map<?, ?> details = (Map<?, ?>) auth.getDetails();
+                // Map에서 꺼낼 때 타입 캐스팅 주의 (보통 Integer or Double로 옴)
+                Object userIdObj = details.get("userId");
+                if (userIdObj instanceof Integer) {
+                    currentUserId = (Integer) userIdObj;
+                } else if (userIdObj instanceof Double) {
+                    currentUserId = ((Double) userIdObj).intValue();
+                }
+            } catch (Exception e) {
+                log.warn("사용자 ID 추출 실패 (비회원 처리): {}", e.getMessage());
+            }
+        }
+
+        // 서비스에 userId(또는 null) 전달
+        List<Article> articleList = aService.findAll(currentUserId);
+
+        return ResponseEntity.status(HttpStatus.OK).body(articleList);
+    }
 
 	/*
 	 * 게시글을 작성하면 db에 게시글을 등록하고 이미지 파일은 로컬 스토리지에 저장 저장 경로는 basePath/authorId/articleId/
@@ -82,6 +84,7 @@ public class ArticleController {
 	public ResponseEntity<?> saveArticle(@RequestParam("title") String title,
 			@RequestParam("content") String content, @RequestParam("category") String category,
 			@RequestParam(value = "tags", required = false) String tags,
+			@RequestParam(value = "visibility", required = false, defaultValue = "PUBLIC") String visibility,
 			@RequestPart(value = "image", required = false) MultipartFile image,
 			Authentication auth) {
 
@@ -104,6 +107,7 @@ public class ArticleController {
 			article.setTags(tags);
 			article.setAuthorId(authorId);
 			article.setAuthorName(realName);
+			article.setVisibility(visibility);
 
 			aService.saveArticle(article);
 

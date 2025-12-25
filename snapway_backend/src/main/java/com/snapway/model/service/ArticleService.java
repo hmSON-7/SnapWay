@@ -9,7 +9,7 @@ import com.snapway.model.dto.Article;
 import com.snapway.model.dto.Reply;
 
 public interface ArticleService {
-	List<Article> findAll();
+	List<Article> findAll(int userId);
 
 	void saveArticle(Article article) throws Exception;
 
