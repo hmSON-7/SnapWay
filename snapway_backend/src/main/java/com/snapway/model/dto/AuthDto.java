@@ -1,6 +1,9 @@
 package com.snapway.model.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 public class AuthDto {
 
@@ -25,5 +28,20 @@ public class AuthDto {
         private String email;
         private String newPassword;
         private String resetToken; // 인증 성공 증명 토큰
+    }
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TokenResponse {
+    	private String accessToken;
+    	private String refreshToken;
+    }
+    
+    @Data
+    public static class ReissueRequest {
+    	private String accessToken;
+    	private String refreshToken;
     }
 }
