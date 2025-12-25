@@ -1,12 +1,11 @@
 ﻿<template>
   <div class="board-detail-page">
     <div class="board-detail-container">
-      <div v-if="isLoading" class="detail-empty">
-        로딩 중...
-      </div>
+      <div v-if="isLoading" class="detail-empty">로딩 중...</div>
       <div v-else-if="!article" class="detail-empty">
         게시글을 불러오지 못했습니다.
       </div>
+
       <div v-else class="board-detail-card">
         <div class="detail-header">
           <span class="category-badge" :class="categoryClass">
@@ -41,7 +40,62 @@
             <button v-if="canDelete" class="btn danger" type="button" @click="onDelete">삭제</button>
           </div>
         </div>
-      </div>
+
+        <div class="comment-section">
+          <h3 class="comment-header">댓글 <span class="comment-count">{{ replies.length }}</span></h3>
+
+          <div class="comment-form">
+            <template v-if="authStore.isLoggedIn">
+              <textarea 
+                v-model="newReplyContent" 
+                placeholder="댓글을 남겨보세요." 
+                class="comment-input"
+                rows="3"
+              ></textarea>
+              <div class="comment-form-actions">
+                <button class="btn primary small" @click="registReply">등록</button>
+              </div>
+            </template>
+            <template v-else>
+              <div class="login-plz" @click="goLogin">
+                댓글을 작성하려면 <span class="link-text">로그인</span>이 필요합니다.
+              </div>
+            </template>
+          </div>
+
+          <ul class="comment-list">
+            <li v-for="reply in replies" :key="reply.replyId" class="comment-item">
+              <div class="comment-row">
+                <div class="comment-meta">
+                  <span class="writer">{{ reply.replierName || '알 수 없음' }}</span>
+                  <span class="date">{{ formatDate(reply.repliedAt) }}</span>
+                </div>
+                
+                <div v-if="canHandleReply(reply)" class="comment-tools">
+                  <template v-if="editingReplyId === reply.replyId">
+                    <button class="text-btn save" @click="modifyReply(reply.replyId)">저장</button>
+                    <button class="text-btn cancel" @click="cancelEdit">취소</button>
+                  </template>
+                  <template v-else>
+                    <button class="text-btn" @click="startEdit(reply)">수정</button>
+                    <button class="text-btn delete" @click="removeReply(reply.replyId)">삭제</button>
+                  </template>
+                </div>
+              </div>
+
+              <div v-if="editingReplyId === reply.replyId" class="edit-area">
+                <textarea v-model="editingContent" class="edit-input" rows="2"></textarea>
+              </div>
+              <div v-else class="comment-text">
+                {{ reply.content }}
+              </div>
+            </li>
+            <li v-if="replies.length === 0" class="no-reply">
+              첫 번째 댓글을 남겨주세요!
+            </li>
+          </ul>
+        </div>
+        </div>
     </div>
   </div>
 </template>
@@ -51,7 +105,15 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import Viewer from '@toast-ui/editor/dist/toastui-editor-viewer';
 import '@toast-ui/editor/dist/toastui-editor-viewer.css';
-import { fetchArticle, deleteArticle } from '@/api/articleApi';
+
+// API import 추가
+import { 
+  fetchArticle, 
+  deleteArticle, 
+  addReply, 
+  updateReply, 
+  deleteReply 
+} from '@/api/articleApi';
 import { fetchTripDetail } from '@/api/tripApi';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -59,25 +121,40 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+
+// --- 게시글 State ---
 const article = ref(null);
 const isLoading = ref(true);
 const viewerRoot = ref(null);
-const tripMapRoot = ref(null);
 let viewerInstance = null;
+
+// --- 지도 State ---
+const tripMapRoot = ref(null);
 let tripMapInstance = null;
 let tripMarkers = [];
 let tripPolyline = null;
 const tripId = ref(null);
 const tripData = ref(null);
 const tripPath = ref([]);
-const currentUserId = computed(() => Number(authStore.loginUser?.id));
+
+// --- [NEW] 댓글 State ---
+const replies = ref([]);            // 댓글 목록
+const newReplyContent = ref('');    // 새 댓글 입력
+const editingReplyId = ref(null);   // 현재 수정 중인 댓글 ID
+const editingContent = ref('');     // 수정 중인 댓글 내용
+
+// Computed
+const currentUserId = computed(() => {
+  return authStore.user ? Number(authStore.user.id) : -1;
+});
 const hasTripPath = computed(() => tripPath.value.length > 0);
 const canEdit = computed(() => {
   if (!authStore.isLoggedIn || !article.value) return false;
   return Number(article.value.authorId) === currentUserId.value;
 });
-const canDelete = computed(() => canEdit.value || authStore.isAdmin);
+const canDelete = computed(() => canEdit.value || authStore.isAdmin); // isAdmin은 store 구현에 따라 다름
 
+// --- 카테고리 로직 ---
 const categoryLabelMap = {
   review: '여행 기록',
   record: '여행 기록',
@@ -87,7 +164,6 @@ const categoryLabelMap = {
   notice: '공지',
   free: '자유',
 };
-
 const categoryClassMap = {
   '여행 기록': 'cat-record',
   '여행 팁': 'cat-tip',
@@ -96,17 +172,14 @@ const categoryClassMap = {
   공지: 'cat-notice',
   자유: 'cat-free',
 };
-
 const normalizeCategory = (value) => {
   if (!value) return '자유';
   return categoryLabelMap[value] ?? value;
 };
-
 const categoryLabel = computed(() => normalizeCategory(article.value?.category));
-const categoryClass = computed(
-  () => categoryClassMap[categoryLabel.value] ?? 'cat-free',
-);
+const categoryClass = computed(() => categoryClassMap[categoryLabel.value] ?? 'cat-free');
 
+// --- Helper Functions ---
 const extractTripId = (tags) => {
   if (!tags) return null;
   const match = String(tags).match(/trip:(\d+)/i);
@@ -149,6 +222,28 @@ const buildTripPath = (records = []) =>
     )
     .sort((a, b) => toMillis(a.visitedDate) - toMillis(b.visitedDate));
 
+const formattedDate = computed(() => {
+  const value = article.value?.uploadedAt;
+  if (!value) return '';
+  const raw = String(value);
+  if (raw.includes('T')) return raw.split('T')[0];
+  if (raw.includes(' ')) return raw.split(' ')[0];
+  return raw;
+});
+
+// 댓글 날짜 포맷
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hour}:${min}`;
+};
+
+// --- Map Logic ---
 const clearTripMap = () => {
   if (tripMarkers.length) {
     tripMarkers.forEach((marker) => marker.setMap(null));
@@ -172,7 +267,6 @@ const renderTripMap = (pathData) => {
   }
 
   clearTripMap();
-
   const bounds = new window.kakao.maps.LatLngBounds();
   const linePath = pathData.map((item) => {
     const latlng = new window.kakao.maps.LatLng(item.latitude, item.longitude);
@@ -197,15 +291,7 @@ const renderTripMap = (pathData) => {
   tripMapInstance.setBounds(bounds);
 };
 
-const formattedDate = computed(() => {
-  const value = article.value?.uploadedAt;
-  if (!value) return '';
-  const raw = String(value);
-  if (raw.includes('T')) return raw.split('T')[0];
-  if (raw.includes(' ')) return raw.split(' ')[0];
-  return raw;
-});
-
+// --- Data Loading ---
 const loadTripData = async () => {
   if (!tripId.value) return;
   try {
@@ -218,10 +304,13 @@ const loadTripData = async () => {
 
 const loadArticle = async () => {
   try {
+    // Controller가 { article: {}, replies: [] } 형태의 Map을 반환함
     const { data } = await fetchArticle(route.params.articleId);
+    
+    // 게시글 데이터
     article.value = data?.article ?? null;
-
-    console.log('content:', article.value?.content);
+    // 댓글 데이터
+    replies.value = data?.replies ?? [];
 
     if (article.value?.content) {
       article.value.content = normalizeImageUrls(article.value.content);
@@ -245,6 +334,7 @@ const initViewer = () => {
   });
 };
 
+// --- Lifecycle & Watchers ---
 onMounted(async () => {
   await loadArticle();
   initViewer();
@@ -273,6 +363,7 @@ watch(
   }
 );
 
+// --- Action Handlers (Article) ---
 const goBack = () => {
   router.push({ name: 'board' });
 };
@@ -292,8 +383,7 @@ const onDelete = async () => {
     alert('작성자 또는 관리자만 삭제할 수 있습니다.');
     return;
   }
-  const ok = confirm('게시글을 삭제할까요?');
-  if (!ok) return;
+  if (!confirm('게시글을 삭제할까요?')) return;
   try {
     await deleteArticle(article.value.articleId);
     router.push({ name: 'board' });
@@ -302,10 +392,93 @@ const onDelete = async () => {
     alert('게시글 삭제에 실패했습니다.');
   }
 };
+
+const goLogin = () => {
+  alert('로그인이 필요한 서비스입니다.');
+  router.push('/regist'); // 혹은 로그인 페이지
+};
+
+// --- [NEW] Action Handlers (Reply) ---
+
+// 댓글 등록
+const registReply = async () => {
+  if (!newReplyContent.value.trim()) {
+    alert('내용을 입력해주세요.');
+    return;
+  }
+  if (!article.value) return;
+
+  const replyData = {
+    articleId: article.value.articleId,
+    content: newReplyContent.value
+  };
+
+  try {
+    await addReply(replyData);
+    newReplyContent.value = ''; // 입력창 초기화
+    await loadArticle(); // 목록 갱신 (혹은 수동으로 replies에 push해도 됨)
+  } catch (error) {
+    console.error('댓글 등록 실패:', error);
+    alert('댓글 등록 중 오류가 발생했습니다.');
+  }
+};
+
+// 본인 댓글 여부 확인
+const canHandleReply = (reply) => {
+  if (!authStore.isLoggedIn) return false;
+  // replierId와 로그인 유저 ID 비교
+  return reply.replierId === currentUserId.value;
+};
+
+// 댓글 수정 모드 진입
+const startEdit = (reply) => {
+  editingReplyId.value = reply.replyId;
+  editingContent.value = reply.content;
+};
+
+// 댓글 수정 취소
+const cancelEdit = () => {
+  editingReplyId.value = null;
+  editingContent.value = '';
+};
+
+// 댓글 수정 저장
+const modifyReply = async (replyId) => {
+  if (!editingContent.value.trim()) {
+    alert('내용을 입력해주세요.');
+    return;
+  }
+  
+  const replyData = {
+    replyId: replyId,
+    content: editingContent.value
+  };
+
+  try {
+    await updateReply(replyData);
+    cancelEdit();
+    await loadArticle(); // 목록 갱신
+  } catch (error) {
+    console.error('댓글 수정 실패:', error);
+    alert('댓글 수정에 실패했습니다.');
+  }
+};
+
+// 댓글 삭제
+const removeReply = async (replyId) => {
+  if (!confirm('댓글을 삭제하시겠습니까?')) return;
+  try {
+    await deleteReply(replyId);
+    await loadArticle(); // 목록 갱신
+  } catch (error) {
+    console.error('댓글 삭제 실패:', error);
+    alert('댓글 삭제에 실패했습니다.');
+  }
+};
 </script>
 
 <style scoped>
-/* 기존 스타일 유지 */
+/* 기존 스타일 유지 (상단 코드 참조) */
 .board-detail-page {
   min-height: calc(100vh - 80px);
   display: flex;
@@ -418,6 +591,8 @@ const onDelete = async () => {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .detail-actions-right {
@@ -425,47 +600,44 @@ const onDelete = async () => {
   gap: 8px;
 }
 
-.btn.secondary {
-  background: #e2e8f0;
-  color: #1e293b;
-  padding: 10px 18px;
+.btn {
   border-radius: 999px;
   border: none;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s;
+  padding: 10px 18px;
 }
-
+.btn.small {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+.btn.primary {
+  background: #3b82f6;
+  color: #fff;
+}
+.btn.primary:hover {
+  background: #2563eb;
+}
+.btn.secondary {
+  background: #e2e8f0;
+  color: #1e293b;
+}
 .btn.secondary:hover {
   background: #cbd5e1;
 }
-
 .btn.outline {
   background: transparent;
   border: 1px solid #cbd5e1;
   color: #1e293b;
-  padding: 10px 18px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
 }
-
 .btn.outline:hover {
   background: #e2e8f0;
 }
-
 .btn.danger {
   background: linear-gradient(135deg, #f87171, #ef4444);
   color: #fff;
-  padding: 10px 18px;
-  border-radius: 999px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
 }
-
 .btn.danger:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 22px rgba(239, 68, 68, 0.35);
@@ -490,48 +662,177 @@ const onDelete = async () => {
   max-width: max-content;
   white-space: nowrap;
 }
+.cat-review { background: #dcfce7; color: #166534; }
+.cat-tip { background: #e0f2fe; color: #075985; }
+.cat-qna { background: #fef9c3; color: #854d0e; }
+.cat-mate { background: #e0e7ff; color: #3730a3; }
+.cat-notice { background: #fee2e2; color: #991b1b; }
+.cat-free { background: #f8fafc; color: #475569; }
 
-.cat-review {
-  background: #dcfce7;
-  color: #166534;
+/* --- [NEW] Comment Styles --- */
+.comment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 10px;
 }
 
-.cat-tip {
-  background: #e0f2fe;
-  color: #075985;
+.comment-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.cat-qna {
-  background: #fef9c3;
-  color: #854d0e;
+.comment-count {
+  color: #3b82f6;
 }
 
-.cat-mate {
-  background: #e0e7ff;
-  color: #3730a3;
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.cat-notice {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.cat-free {
+.comment-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  resize: vertical;
   background: #f8fafc;
-  color: #475569;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border 0.2s;
+}
+.comment-input:focus {
+  border-color: #3b82f6;
+  background: #fff;
+}
+
+.comment-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.login-plz {
+  padding: 20px;
+  text-align: center;
+  background: #f1f5f9;
+  border-radius: 12px;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.link-text {
+  color: #3b82f6;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.comment-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.writer {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.date {
+  color: #94a3b8;
+}
+
+.comment-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 4px;
+}
+.text-btn:hover {
+  color: #334155;
+  text-decoration: underline;
+}
+.text-btn.delete {
+  color: #ef4444;
+}
+.text-btn.delete:hover {
+  color: #b91c1c;
+}
+.text-btn.save {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.comment-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #334155;
+  white-space: pre-wrap; /* 줄바꿈 유지 */
+}
+
+.edit-area {
+  width: 100%;
+}
+.edit-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.no-reply {
+  text-align: center;
+  padding: 30px;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 @media (max-width: 768px) {
-  .board-detail-page {
-    padding: 28px 16px;
-  }
-
-  .board-detail-card {
-    padding: 22px 18px;
-  }
-
-  .detail-title {
-    font-size: 1.7rem;
-  }
+  .board-detail-page { padding: 28px 16px; }
+  .board-detail-card { padding: 22px 18px; }
+  .detail-title { font-size: 1.7rem; }
 }
 </style>

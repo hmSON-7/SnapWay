@@ -1,14 +1,16 @@
 package com.snapway.security;
 
-import java.util.*;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
 import com.snapway.model.dto.Member;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -29,9 +31,11 @@ public class JwtUtil {
 	}
 
 	// 엑세스 토큰 생성 메소드
-	public String generateAccessToken(Member member, int userId, String email, List<String> roles) {
+	public String generateAccessToken(Member member, String email, List<String> roles) {
 		// LocalDateTime now = LocalDateTime.now();
 		// LocalDateTime expire = now.plusSeconds(accessTokenExpire);
+		int userId = member.getId();
+		
 		Date now = new Date();
 		Date expire = new Date(now.getTime() + accessTokenExpire);
 
