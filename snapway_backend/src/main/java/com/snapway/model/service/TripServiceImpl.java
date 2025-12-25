@@ -50,6 +50,9 @@ public class TripServiceImpl implements TripService {
     @Value("${spring.servlet.multipart.location}")
     private String basePath;
     
+    @Value("${app.self-origin}")
+    private String domain;
+    
     // AI 응답 파싱용 내부 레코드
     private record AiResponseDto(String content, List<String> hashtags) {}
     private record PhotoAnalysisResult(MultipartFile file, PhotoMetadata metadata, String description) {}
@@ -292,7 +295,7 @@ public class TripServiceImpl implements TripService {
             // 웹 접근 URL 생성 (ArticleController 참고: /files/userId/...)
             // ArticleController가 basePath를 ResourceHandler로 /files/** 와 매핑한다고 가정
             // URL 구조: /files/{memberId}/trip/{tripId}/{filename}
-            String webPath = "/files/" + memberId + "/trip/" + tripId + "/" + savedFilename;
+            String webPath = domain + "/files/" + memberId + "/trip/" + tripId + "/" + savedFilename;
 
             // 마크다운 치환
             String placeholder = "[[PHOTO_" + i + "]]";

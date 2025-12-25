@@ -25,8 +25,8 @@
               <span class="detail-map-title">Trip route</span>
               <span class="detail-map-subtitle">Markers/path from photo time + GPS</span>
             </div>
-            <div v-if="hasTripPath" ref="tripMapRoot" class="detail-trip-map"></div>
-            <div v-else class="detail-map-empty">
+            <div v-show="hasTripPath" ref="tripMapRoot" class="detail-trip-map"></div>
+            <div v-if="!hasTripPath" class="detail-map-empty">
               GPS 정보가 없는 사진이라 경로를 표시할 수 없습니다.
             </div>
           </div>
@@ -190,15 +190,29 @@ const extractTripId = (tags) => {
 
 const normalizeImageUrls = (content) => {
   if (!content) return content;
-  const base = apiBaseUrl.replace(/\/$/, '');
-  const withMarkdown = content.replace(
+  const base = apiBaseUrl.replace(/\/$/, ''); // http://localhost:8081
+
+  // 1. 마크다운 형식 처리: ![alt](/files/...) -> ![alt](http://localhost:8081/files/...)
+  // 2. <img> 태그 형식 처리: <img src="/files/..."> -> <img src="http://localhost:8081/files/...">
+  
+  // 이미 http로 시작하는 주소는 건드리지 않고, /files/로 시작하는 상대경로만 찾아서 앞에 base를 붙입니다.
+  let fixedContent = content.replace(
+    /!\[([^\]]*)\]\((\/files\/[^)]+)\)/g,
+    (match, alt, path) => `![${alt}](${base}${path})`
+  );
+
+  fixedContent = fixedContent.replace(
+    /<img\s+([^>]*?)src=["'](\/files\/[^"']+)["']([^>]*?)>/gi,
+    (match, before, path, after) => `<img ${before}src="${base}${path}"${after}>`
+  );
+
+  // 기존에 있던 /img/ 처리 로직도 유지하고 싶다면 아래 추가
+  fixedContent = fixedContent.replace(
     /!\[([^\]]*)\]\((\/img\/[^)]+)\)/g,
-    (match, alt, path) => `![${alt}](${base}${path})`,
+    (match, alt, path) => `![${alt}](${base}${path})`
   );
-  return withMarkdown.replace(
-    /<img\s+([^>]*?)src=["'](\/img\/[^"']+)["']([^>]*?)>/gi,
-    (match, before, path, after) => `<img ${before}src="${base}${path}"${after}>`,
-  );
+
+  return fixedContent;
 };
 
 const toMillis = (value) => {
@@ -256,39 +270,60 @@ const clearTripMap = () => {
 };
 
 const renderTripMap = (pathData) => {
-  if (!tripMapRoot.value || !window.kakao || !window.kakao.maps) return;
-  if (!pathData.length) return;
+  if (!window.kakao || !window.kakao.maps) return;
 
-  if (!tripMapInstance) {
-    tripMapInstance = new window.kakao.maps.Map(tripMapRoot.value, {
-      center: new window.kakao.maps.LatLng(pathData[0].latitude, pathData[0].longitude),
-      level: 6,
+  window.kakao.maps.load(() => {
+    // 1. 다시 한 번 DOM 체크
+    const container = tripMapRoot.value;
+    if (!container) return;
+
+    // 2. 지도 인스턴스 생성 (없을 경우에만)
+    if (!tripMapInstance) {
+      const options = {
+        center: new window.kakao.maps.LatLng(pathData[0].latitude, pathData[0].longitude),
+        level: 4,
+      };
+      tripMapInstance = new window.kakao.maps.Map(container, options);
+    }
+
+    // 3. 기존 마커/선 삭제
+    clearTripMap();
+
+    // 4. 경로 및 마커 그리기
+    const bounds = new window.kakao.maps.LatLngBounds();
+    const linePath = [];
+
+    pathData.forEach((item) => {
+      const latlng = new window.kakao.maps.LatLng(item.latitude, item.longitude);
+      linePath.push(latlng);
+
+      const marker = new window.kakao.maps.Marker({
+        position: latlng,
+        title: item.placeName
+      });
+      marker.setMap(tripMapInstance);
+      tripMarkers.push(marker);
+      bounds.extend(latlng);
     });
-  }
 
-  clearTripMap();
-  const bounds = new window.kakao.maps.LatLngBounds();
-  const linePath = pathData.map((item) => {
-    const latlng = new window.kakao.maps.LatLng(item.latitude, item.longitude);
-    const marker = new window.kakao.maps.Marker({
-      map: tripMapInstance,
-      position: latlng,
-      title: item.placeName || 'Trip spot',
+    tripPolyline = new window.kakao.maps.Polyline({
+      path: linePath,
+      strokeWeight: 5,
+      strokeColor: '#3b82f6',
+      strokeOpacity: 0.8,
+      strokeStyle: 'solid',
     });
-    tripMarkers.push(marker);
-    bounds.extend(latlng);
-    return latlng;
-  });
+    tripPolyline.setMap(tripMapInstance);
 
-  tripPolyline = new window.kakao.maps.Polyline({
-    path: linePath,
-    strokeWeight: 4,
-    strokeColor: '#2563eb',
-    strokeOpacity: 0.9,
-    strokeStyle: 'solid',
+    // 5. [중요] 비동기로 레이아웃 재계산
+    // v-show로 인해 display: none -> block으로 바뀔 때 지도가 깨지는 것을 방지
+    setTimeout(() => {
+      if (tripMapInstance) {
+        tripMapInstance.relayout(); // 맵 크기 재계산
+        tripMapInstance.setBounds(bounds); // 마커가 다 보이게 조정
+      }
+    }, 200); // 넉넉하게 200ms 대기
   });
-  tripPolyline.setMap(tripMapInstance);
-  tripMapInstance.setBounds(bounds);
 };
 
 // --- Data Loading ---
@@ -349,18 +384,25 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  () => tripData.value?.records,
-  (records) => {
-    const pathData = buildTripPath(Array.isArray(records) ? records : []);
-    tripPath.value = pathData;
-    nextTick(() => {
-      if (pathData.length) {
-        renderTripMap(pathData);
-      } else {
-        clearTripMap();
-      }
-    });
-  }
+  () => tripData.value,
+  async (newData) => {
+    // records 데이터가 실제로 존재하고 배열인 경우에만 실행
+    if (newData && Array.isArray(newData.records) && newData.records.length > 0) {
+      const pathData = buildTripPath(newData.records);
+      tripPath.value = pathData;
+      
+      // DOM 렌더링 완료 대기
+      await nextTick();
+      
+      // 0.1초 정도 추가 대기 (CSS 애니메이션이나 렌더링 지연 대응)
+      setTimeout(() => {
+        if (tripMapRoot.value && pathData.length > 0) {
+          renderTripMap(pathData);
+        }
+      }, 100);
+    }
+  },
+  { deep: true } // immediate: true는 상황에 따라 제거해도 됩니다 (어차피 loadArticle에서 데이터를 가져오므로)
 );
 
 // --- Action Handlers (Article) ---

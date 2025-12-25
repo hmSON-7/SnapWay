@@ -73,7 +73,8 @@ public class SecurityConfig {
                 // 테스트를 위한 임시 개방
                 "/api/trip/**",
                 "/api/auth/password/**",
-                "/api/auth/reissue"
+                "/api/auth/reissue",
+                "/files/**"
             ).permitAll()
             .anyRequest().authenticated()
         )

@@ -206,6 +206,34 @@ const initEditor = (initialContent = '') => {
   });
 };
 
+const loadFromSession = () => {
+  try {
+    const draftJson = sessionStorage.getItem('aiTripDraft');
+    if (!draftJson) return ''; // 데이터 없으면 빈 문자열 반환
+
+    const draft = JSON.parse(draftJson);
+    
+    // 폼 데이터 채우기
+    form.title = draft.title || '';
+    form.visibility = draft.visibility || 'PUBLIC';
+    form.category = 'review';
+    
+    if (draft.tripId) {
+      tripId.value = draft.tripId;
+    }
+    
+    console.log("AI 데이터 로드 성공:", draft.title);
+    return draft.content || '';
+
+  } catch (e) {
+    console.error('AI 기록 불러오기 실패:', e);
+    return '';
+  } finally {
+    // 1회용 데이터이므로 로드 후 삭제 (필요시 주석 처리)
+    sessionStorage.removeItem('aiTripDraft');
+  }
+};
+
 // 기존 데이터 불러오기 (수정 모드)
 const loadArticleData = async () => {
   const articleId = route.params.articleId;
@@ -302,18 +330,27 @@ const goBack = () => {
 };
 
 onMounted(() => {
-  // 1. URL 쿼리 파라미터 확인 (여행 기록에서 넘어왔는지)
+  // 1. URL 쿼리 파라미터 확인
   if (route.query.tripId) {
     tripId.value = route.query.tripId;
-    form.category = 'review'; // 여행 기록 모드면 카테고리 자동 선택
+    form.category = 'review';
   }
 
   // 2. 모드에 따라 초기화
   if (isEditMode.value) {
+    // [수정 모드] 기존 게시글 불러오기
     loadArticleData();
   } else {
-    // 작성 모드일 때 에디터 초기화
-    initEditor();
+    // [작성 모드]
+    let initialContent = '';
+
+    // ★ 추가된 로직: AI 여행 기록 생성 직후라면 세션에서 데이터 로드
+    if (route.query.aiTrip === '1') {
+      initialContent = loadFromSession();
+    }
+
+    // 에디터 초기화 (빈 내용 혹은 AI 생성 내용)
+    initEditor(initialContent);
   }
 });
 </script>

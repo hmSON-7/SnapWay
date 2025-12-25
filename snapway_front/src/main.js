@@ -16,7 +16,7 @@ const initCsrf = async () => {
 // Kakao 지도 SDK 로드가 끝나야 window.kakao가 준비됨
 const loadKakaoMap = () =>
   new Promise((resolve, reject) => {
-    const apiKey = import.meta.env.VITE_KEY_KAKAO_JAVASCRIPT;
+    const apiKey = import.meta.env.VITE_KEY_KAKAO_JAVASCRIPT || "your_kakao_api_key";
 
     if (!apiKey) {
       console.error("Kakao Map API Key가 설정되지 않았습니다.");

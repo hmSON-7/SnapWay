@@ -38,7 +38,8 @@ public class WebConfig implements WebMvcConfigurer {
         log.info("이미지 리소스 핸들러 등록: /files/** -> {}", location);
 
         registry.addResourceHandler("/files/**")
-                .addResourceLocations(location);
+                .addResourceLocations(location)
+                .setCachePeriod(3600);
     }
     
     @Override
