@@ -44,6 +44,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.snapway.model.dto.Article;
 import com.snapway.model.dto.Reply;
 import com.snapway.model.service.ArticleService;
+import com.snapway.model.service.MemberService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;

@@ -1,9 +1,13 @@
-<template>
+﻿<template>
   <div class="board-write-page">
     <div class="board-write-container">
       <div class="board-write-header">
-        <h2 class="board-write-title">게시글 작성</h2>
-        <p class="board-write-subtitle">매너있게 자신의 여행 팁과 경험을 공유해주세요!</p>
+        <h2 class="board-write-title">
+          {{ isEditing ? '게시글 수정' : '게시글 작성' }}
+        </h2>
+        <p class="board-write-subtitle">
+          매너있게 자신의 여행 팁과 경험을 공유해주세요!
+        </p>
       </div>
 
       <form class="board-write-card" @submit.prevent="onSubmit">
@@ -20,9 +24,9 @@
 
         <div class="field">
           <label class="field-label" for="category">카테고리</label>
-          <select id="category" v-model="form.category" class="field-input">
+          <select id="category" v-model="form.category" class="field-input" :disabled="isAiTrip">
             <option value="">카테고리를 선택하세요</option>
-            <option value="여행리뷰">여행 리뷰</option>
+            <option value="여행 기록">여행 기록</option>
             <option value="여행 팁">여행 팁</option>
             <option value="질문">질문</option>
             <option value="동행 구하기">동행구하기</option>
@@ -33,6 +37,16 @@
 
         <div class="field">
           <label class="field-label" id="content-label">내용</label>
+          <div v-if="tripData && tripData.records && tripData.records.length" class="trip-map-panel">
+            <div class="trip-map-meta">
+              <span class="trip-map-title">Trip route</span>
+              <span class="trip-map-subtitle">Markers/path from photo time + GPS</span>
+            </div>
+            <div v-if="hasTripPath" ref="tripMapRoot" class="trip-map"></div>
+            <div v-else class="trip-map-empty">
+              GPS 정보가 없는 사진이라 경로를 표시할 수 없습니다.
+            </div>
+          </div>
           <div class="editor-wrap" aria-labelledby="content-label">
             <div ref="editorRoot" class="editor-root"></div>
           </div>
@@ -43,7 +57,9 @@
 
         <div class="board-write-actions">
           <button type="button" class="btn secondary" @click="goBack">뒤로 가기</button>
-          <button type="submit" class="btn primary" :disabled="isSubmitting">글 올리기</button>
+          <button type="submit" class="btn primary" :disabled="isSubmitting || (isEditing && !canEdit)">
+            {{ isEditing ? '수정하기' : '글 올리기' }}
+          </button>
         </div>
       </form>
     </div>
@@ -51,25 +67,41 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import Editor from '@toast-ui/editor';
 import '@toast-ui/editor/dist/toastui-editor.css';
 import { useAuthStore } from '@/store/useAuthStore';
-import { createArticle, uploadArticleImage } from '@/api/articleApi';
+import { createArticle, updateArticle, fetchArticle, uploadArticleImage } from '@/api/articleApi';
+import { fetchTripDetail } from '@/api/tripApi';
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.isAdmin);
+const articleId = computed(() => Number(route.params.articleId) || null);
+const isEditing = computed(() => Number.isFinite(articleId.value));
+const canEdit = ref(true);
 const editorRoot = ref(null);
+const tripMapRoot = ref(null);
 let editorInstance = null;
+let tripMapInstance = null;
+let tripMarkers = [];
+let tripPolyline = null;
 const isSubmitting = ref(false);
 const submitError = ref('');
+const aiTripId = ref(null);
+const tagValue = ref('');
+const tripData = ref(null);
+const tripPath = ref([]);
 const form = ref({
   title: '',
   category: '',
   content: '',
 });
+const isAiTrip = computed(() => Number.isFinite(aiTripId.value) && aiTripId.value > 0);
+const hasTripPath = computed(() => tripPath.value.length > 0);
 
 const goBack = () => {
   router.push({ name: 'board' });
@@ -81,7 +113,132 @@ const syncContentFromEditor = () => {
   }
 };
 
+const normalizeImageUrls = (content) => {
+  if (!content) return content;
+  const base = apiBaseUrl.replace(/\/$/, '');
+  const withMarkdown = content.replace(
+    /!\[([^\]]*)\]\((\/img\/[^)]+)\)/g,
+    (match, alt, path) => `![${alt}](${base}${path})`,
+  );
+  return withMarkdown.replace(
+    /<img\s+([^>]*?)src=["'](\/img\/[^"']+)["']([^>]*?)>/gi,
+    (match, before, path, after) => `<img ${before}src="${base}${path}"${after}>`,
+  );
+};
+
+const extractTripId = (tags) => {
+  if (!tags) return null;
+  const match = String(tags).match(/trip:(\d+)/i);
+  if (!match) return null;
+  const id = Number(match[1]);
+  return Number.isFinite(id) ? id : null;
+};
+
+const applyAiCategory = () => {
+  if (isAiTrip.value) {
+    form.value.category = '여행 기록';
+  }
+};
+
+const loadAiDraft = () => {
+  if (isEditing.value) return;
+  const raw = sessionStorage.getItem('aiTripDraft');
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    aiTripId.value = Number(parsed.tripId) || null;
+    form.value.title = parsed.title ?? '';
+    form.value.content = normalizeImageUrls(parsed.content ?? '');
+    if (aiTripId.value) {
+      tagValue.value = `trip:${aiTripId.value}`;
+    }
+    applyAiCategory();
+  } catch (error) {
+    console.error('AI draft parse failed:', error);
+  }
+};
+
+const toMillis = (value) => {
+  if (!value) return Number.MAX_SAFE_INTEGER;
+  const raw = String(value).replace(' ', 'T');
+  const time = new Date(raw).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+};
+
+const buildTripPath = (records = []) =>
+  records
+    .map((record) => ({
+      latitude: Number(record.latitude),
+      longitude: Number(record.longitude),
+      placeName: record.placeName,
+      visitedDate: record.visitedDate,
+    }))
+    .filter(
+      (record) =>
+        Number.isFinite(record.latitude) && Number.isFinite(record.longitude),
+    )
+    .sort((a, b) => toMillis(a.visitedDate) - toMillis(b.visitedDate));
+
+const clearTripMap = () => {
+  if (tripMarkers.length) {
+    tripMarkers.forEach((marker) => marker.setMap(null));
+    tripMarkers = [];
+  }
+  if (tripPolyline) {
+    tripPolyline.setMap(null);
+    tripPolyline = null;
+  }
+};
+
+const renderTripMap = (pathData) => {
+  if (!tripMapRoot.value || !window.kakao || !window.kakao.maps) return;
+  if (!pathData.length) return;
+
+  if (!tripMapInstance) {
+    tripMapInstance = new window.kakao.maps.Map(tripMapRoot.value, {
+      center: new window.kakao.maps.LatLng(pathData[0].latitude, pathData[0].longitude),
+      level: 6,
+    });
+  }
+
+  clearTripMap();
+
+  const bounds = new window.kakao.maps.LatLngBounds();
+  const linePath = pathData.map((item) => {
+    const latlng = new window.kakao.maps.LatLng(item.latitude, item.longitude);
+    const marker = new window.kakao.maps.Marker({
+      map: tripMapInstance,
+      position: latlng,
+      title: item.placeName || 'Trip spot',
+    });
+    tripMarkers.push(marker);
+    bounds.extend(latlng);
+    return latlng;
+  });
+
+  tripPolyline = new window.kakao.maps.Polyline({
+    path: linePath,
+    strokeWeight: 4,
+    strokeColor: '#2563eb',
+    strokeOpacity: 0.9,
+    strokeStyle: 'solid',
+  });
+  tripPolyline.setMap(tripMapInstance);
+  tripMapInstance.setBounds(bounds);
+};
+
+const loadTripData = async () => {
+  if (!aiTripId.value) return;
+  try {
+    const { data } = await fetchTripDetail(aiTripId.value);
+    tripData.value = data;
+  } catch (error) {
+    console.error('Trip detail load failed:', error);
+  }
+};
+
 onMounted(() => {
+  loadAiDraft();
   editorInstance = new Editor({
     el: editorRoot.value,
     height: '380px',
@@ -96,7 +253,8 @@ onMounted(() => {
   editorInstance.on('change', syncContentFromEditor);
   editorInstance.addHook('addImageBlobHook', async (blob, callback) => {
     try {
-      const { data } = await uploadArticleImage(blob);
+      const userId = Number(authStore.loginUser?.id) || 1;
+      const { data } = await uploadArticleImage(blob, userId);
       const imageUrl = data?.fileUrl;
       if (imageUrl) {
         callback(imageUrl, blob.name);
@@ -108,9 +266,16 @@ onMounted(() => {
     alert('이미지 업로드에 실패했습니다.');
     return false;
   });
+
+  if (isEditing.value) {
+    loadArticle();
+  } else if (aiTripId.value) {
+    loadTripData();
+  }
 });
 
 onBeforeUnmount(() => {
+  clearTripMap();
   if (editorInstance) {
     editorInstance.off('change', syncContentFromEditor);
     editorInstance.removeHook('addImageBlobHook');
@@ -121,6 +286,14 @@ onBeforeUnmount(() => {
 
 const onSubmit = async () => {
   submitError.value = '';
+  if (isEditing.value && !canEdit.value) {
+    submitError.value = '작성자만 수정할 수 있습니다.';
+    return;
+  }
+  if (isAiTrip.value) {
+    form.value.category = '여행 기록';
+    tagValue.value = `trip:${aiTripId.value}`;
+  }
   syncContentFromEditor();
   if (!form.value.title.trim()) {
     submitError.value = '제목을 입력해주세요.';
@@ -139,32 +312,88 @@ const onSubmit = async () => {
     title: form.value.title.trim(),
     category: form.value.category,
     content: form.value.content.trim(),
-    tags: '',
+    tags: tagValue.value ?? '',
     authorId: (() => {
       const raw = Number(authStore.loginUser?.id);
       return Number.isFinite(raw) && raw > 0 ? raw : 1;
     })(),
-    likes: 0,
-    hits: 0,
   };
-
-  const formData = new FormData();
-  formData.append(
-    'article',
-    new Blob([JSON.stringify(articlePayload)], { type: 'application/json' }),
-  );
 
   try {
     isSubmitting.value = true;
-    await createArticle(formData);
-    router.push({ name: 'board' });
+    if (isEditing.value) {
+      await updateArticle({ ...articlePayload, articleId: articleId.value });
+      router.push({ name: 'boardDetail', params: { articleId: articleId.value } });
+    } else {
+      const formData = new FormData();
+      formData.append(
+        'article',
+        new Blob([JSON.stringify({ ...articlePayload, likes: 0, hits: 0 })], {
+          type: 'application/json',
+        }),
+      );
+      await createArticle(formData);
+      if (isAiTrip.value) {
+        sessionStorage.removeItem('aiTripDraft');
+      }
+      router.push({ name: 'board' });
+    }
   } catch (error) {
-    submitError.value = '게시글 등록에 실패했습니다.';
-    console.error('게시글 등록 실패:', error);
+    submitError.value = isEditing.value
+      ? '게시글 수정에 실패했습니다.'
+      : '게시글 등록에 실패했습니다.';
+    console.error('게시글 등록/수정 실패:', error);
   } finally {
     isSubmitting.value = false;
   }
 };
+
+const loadArticle = async () => {
+  try {
+    const { data } = await fetchArticle(articleId.value);
+    const loaded = data?.article;
+    if (!loaded) return;
+    form.value.title = loaded.title ?? '';
+    form.value.category = loaded.category ?? '';
+    form.value.content = normalizeImageUrls(loaded.content ?? '');
+    tagValue.value = loaded.tags ?? '';
+    const derivedTripId = extractTripId(tagValue.value);
+    if (derivedTripId) {
+      aiTripId.value = derivedTripId;
+      applyAiCategory();
+      await loadTripData();
+    }
+    if (editorInstance) {
+      editorInstance.setMarkdown(form.value.content);
+    }
+    const currentId = Number(authStore.loginUser?.id);
+    canEdit.value = Number.isFinite(currentId) && currentId === Number(loaded.authorId);
+  } catch (error) {
+    submitError.value = '게시글 정보를 불러오지 못했습니다.';
+    console.error('게시글 조회 실패:', error);
+  }
+};
+
+watch(aiTripId, (value) => {
+  if (value && !isEditing.value) {
+    loadTripData();
+  }
+});
+
+watch(
+  () => tripData.value?.records,
+  (records) => {
+    const pathData = buildTripPath(Array.isArray(records) ? records : []);
+    tripPath.value = pathData;
+    nextTick(() => {
+      if (pathData.length) {
+        renderTripMap(pathData);
+      } else {
+        clearTripMap();
+      }
+    });
+  }
+);
 </script>
 
 <style scoped>
@@ -258,6 +487,61 @@ const onSubmit = async () => {
 .editor-wrap :deep(.toastui-editor-contents) {
   font-size: 0.95rem;
   color: #1f2937;
+}
+
+.trip-map-panel {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(226, 232, 240, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trip-map-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.trip-map-title {
+  font-size: 0.95rem;
+}
+
+.trip-map-subtitle {
+  font-weight: 500;
+  color: #64748b;
+}
+
+.trip-map {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+  background: #e2e8f0;
+}
+
+.trip-map-empty {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 12px;
 }
 
 .board-write-note {

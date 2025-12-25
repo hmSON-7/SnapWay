@@ -17,10 +17,11 @@ export const updateArticle = (article) =>
 export const deleteArticle = (articleId) =>
   http.delete("/article/article", { params: { articleId } });
 
-export const uploadArticleImage = (file) => {
+export const uploadArticleImage = (file, userId) => {
   const formData = new FormData();
   formData.append("file", file);
   return http.post("/article/upload", formData, {
+    params: userId ? { userId } : undefined,
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
