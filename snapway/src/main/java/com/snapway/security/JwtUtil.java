@@ -31,14 +31,15 @@ public class JwtUtil {
 	}
 	
 	// 엑세스 토큰 생성 메소드
-	public String generateAccessToken(String username, List<String> roles) {
+	public String generateAccessToken(int userId, String email, List<String> roles) {
 //		LocalDateTime now = LocalDateTime.now();
 //		LocalDateTime expire = now.plusSeconds(accessTokenExpire);
 		Date now = new Date();
 		Date expire = new Date(now.getTime() + accessTokenExpire);
 		
 		return Jwts.builder()
-				.subject(username)
+				.subject(email)
+				.claim("userId", userId)
 				.claim("roles", roles)
 				.claim("type", "access")
 				.issuedAt(now)
@@ -63,7 +64,7 @@ public class JwtUtil {
 
 	
 	// 토큰 파싱 메소드
-	private Claims parseClaims(String token) {
+	public Claims parseClaims(String token) {
 		try {
 			return Jwts.parser()
 					.verifyWith(secretKey)
@@ -81,6 +82,27 @@ public class JwtUtil {
 		Date expiration = parseClaims(token).getExpiration();
 		return expiration.before(new Date());
 	}
+	
+	// 토큰 전체 유효성 검사 (서명 + 구조 + 만료)
+	public boolean isTokenValid(String token) {
+	    try {
+	        Claims claims = Jwts.parser()
+	                .verifyWith(secretKey) // 서명 검증 설정
+	                .build()
+	                .parseSignedClaims(token)
+	                .getPayload();
+
+	        Date expiration = claims.getExpiration();
+	        return expiration != null && expiration.after(new Date());
+	    } catch (ExpiredJwtException e) {
+	        // 만료된 토큰은 유효하지 않다고 처리
+	        return false;
+	    } catch (Exception e) {
+	        // 서명 불일치, 형식 오류 등 모두 false
+	        return false;
+	    }
+	}
+
 	
 	// 토큰의 종류를 확인하는 메소드
 	public boolean isAccessToken(String token) {
