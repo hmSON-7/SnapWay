@@ -1,7 +1,6 @@
 package com.snapway.model.service;
 
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,8 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.snapway.model.dto.AuthDto;
-import com.snapway.model.dto.AuthDto.PasswordResetRequest;
-import com.snapway.model.dto.AuthDto.ReissueRequest;
 import com.snapway.model.dto.AuthDto.TokenResponse;
 import com.snapway.model.dto.Member;
 import com.snapway.model.mapper.MemberMapper;
@@ -153,11 +150,10 @@ public class AuthServiceImpl implements AuthService {
         
         // 4) 유저 정보(userId, Roles) 조회 (DB 조회 필요)
         Member member = memberMapper.findByEmail(email);
-        int userId = member.getId();
         List<String> roles = List.of(member.getRole().name());
 		
         // 5) 새 토큰 생성 (Access + Refresh) -> RTR(Refresh Token Rotation) 방식 적용
-        String newAccessToken = jwtUtil.generateAccessToken(userId, email, roles);
+        String newAccessToken = jwtUtil.generateAccessToken(member, email, roles);
         String newRefreshToken = jwtUtil.generateRefreshToken(email); // userId 포함 여부는 JwtUtil 구현 확인
 
         // 6) Redis 업데이트
