@@ -1,15 +1,39 @@
-<template>
+﻿<template>
   <div class="record">
     <section class="record-hero">
       <div class="record-card">
-        <p class="record-eyebrow">여행 기록하기</p>
-        <h1 class="record-title">사진과 메모로 여행을 남겨보세요.</h1>
+        <p class="record-eyebrow">여행 기록</p>
+        <h1 class="record-title">사진을 모아 AI 여행 기록을 만들어보세요.</h1>
         <p class="record-subtitle">
-          헤더에서 사진을 올려 AI로 분석하는 기능을 준비 중입니다.
-          지금은 여행 메모 흐름을 정리하는 페이지로 시작합니다.
+          여러 장의 이미지를 올리면 AI가 여행 기록을 정리해줄 수 있도록 준비하고 있어요.
+          사진을 올린 뒤 AI 기록을 생성해보세요.
         </p>
+        <div class="record-upload">
+          <label class="upload-label" for="record-files">여행 사진 업로드</label>
+          <input
+            id="record-files"
+            class="upload-input"
+            type="file"
+            multiple
+            accept="image/*"
+            @change="onFileChange"
+          />
+          <p class="upload-help">선택된 파일: {{ selectedFiles.length }}개</p>
+          <ul v-if="selectedFiles.length" class="upload-list">
+            <li v-for="file in selectedFiles" :key="file.name">
+              {{ file.name }}
+            </li>
+          </ul>
+        </div>
+        <p v-if="submitError" class="record-error">{{ submitError }}</p>
         <div class="record-actions">
-          <button class="btn primary" disabled>사진 업로드 (준비중)</button>
+          <button
+            class="btn primary"
+            :disabled="isSubmitting || !selectedFiles.length"
+            @click="onCreateTrip"
+          >
+            {{ isSubmitting ? 'AI 기록 생성 중...' : 'AI 기록 생성' }}
+          </button>
           <button class="btn secondary" @click="goBoard">게시판 둘러보기</button>
         </div>
       </div>
@@ -18,12 +42,70 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { createAutoTrip } from '@/api/tripApi'
 
 const router = useRouter()
+const selectedFiles = ref([])
+const isSubmitting = ref(false)
+const submitError = ref('')
 
 const goBoard = () => {
-  router.push({ name: 'board' })
+  router.push({ name: 'board', query: { category: 'record' } })
+}
+
+const onFileChange = (event) => {
+  selectedFiles.value = Array.from(event.target.files || [])
+}
+
+const onCreateTrip = async () => {
+  submitError.value = ''
+  if (!selectedFiles.value.length) {
+    submitError.value = '여행 사진을 선택해주세요.'
+    return
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const generatedTitle = `AI 여행 기록 ${today}`
+  const formData = new FormData()
+  formData.append('title', generatedTitle)
+  selectedFiles.value.forEach((file) => {
+    formData.append('files', file)
+  })
+
+  try {
+    isSubmitting.value = true
+    const { data } = await createAutoTrip(formData)
+    const trip = data
+    const content =
+      trip?.records?.find((record) => record.aiContent)?.aiContent ?? ''
+
+    if (!trip?.tripId || !content) {
+      submitError.value = 'AI 기록 생성에 실패했습니다.'
+      return
+    }
+
+    sessionStorage.setItem(
+      'aiTripDraft',
+      JSON.stringify({
+        tripId: trip.tripId,
+        title: trip.title ?? generatedTitle,
+        content,
+      })
+    )
+
+    router.push({ name: 'boardWrite', query: { aiTrip: '1' } })
+  } catch (error) {
+    if (error?.response?.status === 401) {
+      submitError.value = '로그인이 필요합니다.'
+    } else {
+      submitError.value = 'AI 기록 생성에 실패했습니다.'
+    }
+    console.error('AI 기록 생성 실패:', error)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -44,7 +126,7 @@ const goBoard = () => {
 .record-card {
   background: #ffffffcc;
   border-radius: 24px;
-  padding: 36px 28px;
+  padding: 44px 28px;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(10px);
 }
@@ -79,6 +161,48 @@ const goBoard = () => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.record-upload {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.upload-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.upload-help {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.upload-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.record-error {
+  color: #dc2626;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 12px;
 }
 
 .btn {
