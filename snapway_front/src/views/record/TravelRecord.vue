@@ -50,6 +50,7 @@ const router = useRouter()
 const selectedFiles = ref([])
 const isSubmitting = ref(false)
 const submitError = ref('')
+const isPrivate = ref(false)
 
 const goBoard = () => {
   router.push({ name: 'board', query: { category: 'record' } })
@@ -70,6 +71,7 @@ const onCreateTrip = async () => {
   const generatedTitle = `AI 여행 기록 ${today}`
   const formData = new FormData()
   formData.append('title', generatedTitle)
+  formData.append('visibility', isPrivate.value ? 'PRIVATE' : 'PUBLIC')
   selectedFiles.value.forEach((file) => {
     formData.append('files', file)
   })
@@ -92,6 +94,7 @@ const onCreateTrip = async () => {
         tripId: trip.tripId,
         title: trip.title ?? generatedTitle,
         content,
+        visibility: trip.visibility ?? (isPrivate.value ? 'PRIVATE' : 'PUBLIC')
       })
     )
 
