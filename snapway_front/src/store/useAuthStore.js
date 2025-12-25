@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { loginMember, logoutMember } from '@/api/memberApi'
+import { 
+    loginMember,
+    logoutMember,
+    fetchMyInfo, 
+    updateMember,
+    deleteMember,
+} from '@/api/memberApi'
 
 export const useAuthStore = defineStore('auth', () => {
     // 1. 상태 (State)
@@ -79,11 +85,35 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    // 토큰 갱신
     const updateTokens = (newAccess, newRefresh) => {
         accessToken.value = newAccess
         refreshToken.value = newRefresh
         localStorage.setItem('accessToken', newAccess)
         localStorage.setItem('refreshToken', newRefresh)
+    }
+
+    // 회원 정보 수정
+    const updateProfile = async (updateData) => {
+        // 1. 서버에 수정 요청
+        await updateMember(updateData)
+
+        // 2. 수정 성공 시, 변경된 정보를 다시 조회하여 스토어/스토리지 갱신
+        // (토큰 재발급 대신 fetchMyInfo를 통해 최신 User 객체를 확보하여 UI 반영)
+        const { data } = await fetchMyInfo()
+        if (data) {
+            user.value = data
+            localStorage.setItem('user', JSON.stringify(data))
+        }
+    }
+
+    // 회원 탈퇴
+    const withdraw = async (email) => {
+        // 1. 서버에 탈퇴 요청 (DB 삭제 + Redis 토큰 삭제)
+        await deleteMember(email)
+        
+        // 2. 클라이언트 측 정보 삭제 (로그아웃 처리)
+        await logout()
     }
 
     return {
@@ -95,6 +125,8 @@ export const useAuthStore = defineStore('auth', () => {
         login,
         logout,
         loadFromStorage,
-        updateTokens
+        updateTokens,
+        updateProfile,
+        withdraw
     }
 })
