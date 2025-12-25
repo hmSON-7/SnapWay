@@ -11,6 +11,7 @@ public class Reply {
 	private int replyId;
 	private int articleId;
 	private int replierId;
+	private String replierName;
 	private String content;
 	private Date repliedAt;
 }

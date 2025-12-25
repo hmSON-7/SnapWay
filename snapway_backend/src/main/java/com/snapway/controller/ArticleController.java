@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,57 +71,41 @@ public class ArticleController {
 	@GetMapping("/articleList")
 	public ResponseEntity<List<Article>> getArticleList() {
 		List<Article> articleList = aService.findAll();
-		for (Article a : articleList) {
-			System.out.println("확인용:" + a.toString());
-		}
+
 		return ResponseEntity.status(HttpStatus.OK).body(articleList);
 	}
 
 	/*
-	 * 게시글을 작성하면 db에 게시글을 등록하고 이미지 파일은 로컬 스토리지에 저장 저장 경로는
-	 * basePath/authorId/articleId/
+	 * 게시글을 작성하면 db에 게시글을 등록하고 이미지 파일은 로컬 스토리지에 저장 저장 경로는 basePath/authorId/articleId/
 	 */
-	@PostMapping(value = "saveArticle")
-	public ResponseEntity<Map<String, String>> saveArticle(@RequestBody() Article article, Authentication auth) {
+	@PostMapping(value = "/saveArticle", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<?> saveArticle(@RequestParam("title") String title,
+			@RequestParam("content") String content, @RequestParam("category") String category,
+			@RequestParam(value = "tags", required = false) String tags,
+			@RequestPart(value = "image", required = false) MultipartFile image,
+			Authentication auth) {
+
+		log.debug("게시글 저장 요청 - title: {}, category: {}", title, category);
+
 		if (auth == null) {
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "로그인이 필요합니다"));
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(Map.of("message", "로그인이 필요합니다"));
 		}
 
 		try {
-			// 1. 작성자 ID 설정 (항상 토큰 기준)
 			Map<?, ?> details = (Map<?, ?>) auth.getDetails();
 			int authorId = (int) details.get("userId");
+			String realName = (String) details.get("realName");
+
+			Article article = new Article();
+			article.setTitle(title);
+			article.setContent(content);
+			article.setCategory(category);
+			article.setTags(tags);
 			article.setAuthorId(authorId);
+			article.setAuthorName(realName);
 
-			// 2. 게시글 저장 (DB insert) 후 articleId 생성
-			// aService.saveArticle가 articleId를 세팅해 주도록 구현
-			aService.saveArticle(article); 
-
-//			// 3. temp 디렉토리 → 최종 디렉토리로 이미지 이동
-//			Path tempDir = Paths.get(basePath, String.valueOf(authorId), "temp");
-//			Path targetDir = Paths.get(basePath, String.valueOf(authorId), String.valueOf(articleId));
-//
-//			Files.createDirectories(targetDir);
-//
-//			if (Files.exists(tempDir)) {
-//				try (var paths = Files.list(tempDir)) {
-//					paths.filter(Files::isRegularFile).forEach(sourcePath -> {
-//						try {
-//							Path targetPath = targetDir.resolve(sourcePath.getFileName());
-//							Files.move(sourcePath, targetPath /* , StandardCopyOption.REPLACE_EXISTING */);
-//						} catch (IOException e) {
-//							throw new RuntimeException("이미지 이동 실패: " + sourcePath.getFileName(), e);
-//						}
-//					});
-//				}
-//
-//				// temp 폴더 비었으면 삭제 (선택)
-//				try (var paths = Files.list(tempDir)) {
-//					if (paths.findAny().isEmpty()) {
-//						Files.delete(tempDir);
-//					}
-//				}
-//			}
+			aService.saveArticle(article);
 
 			return ResponseEntity.ok(Map.of("message", "게시글이 정상적으로 등록되었습니다"));
 		} catch (Exception e) {
@@ -130,8 +115,10 @@ public class ArticleController {
 		}
 	}
 
+
 	@ExceptionHandler(MaxUploadSizeExceededException.class)
-	public ResponseEntity<Map<String, String>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+	public ResponseEntity<Map<String, String>> handleMaxUploadSizeExceededException(
+			MaxUploadSizeExceededException e) {
 		log.error("파일 크기 제한 초과", e);
 		String message;
 		String causeMessage = e.getRootCause().getMessage();
@@ -149,149 +136,122 @@ public class ArticleController {
 	 */
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<Map<String, ?>> uploadImage(@RequestPart("file") MultipartFile file,
-			HttpServletRequest request, Authentication auth) throws IllegalStateException, IOException {
+			HttpServletRequest request, Authentication auth)
+			throws IllegalStateException, IOException {
 		if (file == null || file.isEmpty()) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "업로드 실패 \n파일이 없습니다"));
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(Map.of("message", "업로드 실패 \n파일이 없습니다"));
 		}
 
 		if (auth == null) {
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "로그인이 필요합니다"));
+			log.error(
+					"====================================auth 정보 null===============================");
+
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(Map.of("message", "로그인이 필요합니다"));
 		}
 
 		Map<?, ?> map = (Map<?, ?>) auth.getDetails();
+		// forEach 람다 사용 - 가장 간결함
+		map.forEach((key, value) -> {
+			System.out.println("key: " + key + ", value: " + value);
+		});
+
 		int userId = (int) map.get("userId");
-		String fileName = UUID.randomUUID().toString() + file.getOriginalFilename();
+		String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
 
-		// 경로예시 c:user\\uploads\\userId\temp\fileName
+		// 파일 저장 경로: basePath/userId/fileName
 		Path savePath = Paths.get(basePath, String.valueOf(userId));
-
-		// 이미지를 저장할 디렉토리를 생성
 		Files.createDirectories(savePath);
 
 		Path target = savePath.resolve(fileName);
 		file.transferTo(target);
 
-//		// 에디터에게 접근 가능한 이미지url을 구성
-		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + (request.getServerPort() + 1);
-//				+ request.getContextPath();
-//		String fileUrl = baseUrl + "/files/" + userId + "/" + "temp" + "/" + fileName;
-		String fileUrl = baseUrl + "/uploads/" + userId + "/" + fileName;
+		// URL 생성 - 슬래시 추가 필수!
+		String baseUrl = request.getScheme() + "://" + request.getServerName() + ":"
+				+ (request.getServerPort() + 1);
+		String fileUrl = baseUrl + "/" + userId + "/" + fileName; // 슬래시 추가!
+
+		log.debug("이미지 업로드 완료: {}", fileUrl);
 
 		return ResponseEntity.status(HttpStatus.OK).body(Map.of("fileUrl", fileUrl));
 	}
 
+
 	/*
-	 * 클라이언트에게 게시판 전달
+	 * 클라이언트에게 게시글 전달
 	 */
-	@GetMapping(value = "/article", produces = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<MultiValueMap<String, Object>> getArticleAsMultipart(@RequestParam long articleId) {
+	@GetMapping("/article")
+	public ResponseEntity<?> getArticle(@RequestParam long articleId) {
 		try {
 			Article article = aService.getArticle(articleId);
 			List<Reply> replyList = aService.getReply(articleId);
+
 			if (article == null) {
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+				return ResponseEntity.status(HttpStatus.NOT_FOUND)
+						.body(Map.of("message", "게시글을 찾을 수 없습니다"));
 			}
 
-			// 1. article JSON 파트
-			String articleJson = objectMapper.writeValueAsString(article);
+			// JSON 형식으로 응답
+			Map<String, Object> response = new HashMap<>();
+			response.put("article", article);
+			response.put("replies", replyList);
 
-			MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-
-			HttpHeaders articleHeaders = new HttpHeaders();
-			articleHeaders.setContentType(MediaType.APPLICATION_JSON);
-			HttpEntity<String> articlePart = new HttpEntity<>(articleJson, articleHeaders);
-			body.add("article", articlePart); // part name: article
-
-			// 1-2. replyList JSON 파트 추가
-			String replyListJson = objectMapper.writeValueAsString(replyList); // List<Reply> -> JSON 배열 문자열[web:29]
-			HttpHeaders replyHeaders = new HttpHeaders();
-			replyHeaders.setContentType(MediaType.APPLICATION_JSON);
-			HttpEntity<String> replyPart = new HttpEntity<>(replyListJson, replyHeaders);
-			body.add("replies", replyPart); // part name: replies
-
-			// 2. content 안의 <img src="...">에서 파일들 파싱
-			String content = article.getContent();
-			Pattern pattern = Pattern.compile("<img\\s+[^>]*src=\\\"([^\\\"]+)\\\"[^>]*>");
-			Matcher matcher = pattern.matcher(content);
-
-			long authorId = article.getAuthorId();
-
-			while (matcher.find()) {
-				String src = matcher.group(1); // http://localhost:8081/files/8/temp/xxx.png
-				String fileName = src.substring(src.lastIndexOf('/') + 1);
-
-				Path imagePath = Paths.get(basePath, String.valueOf(authorId), String.valueOf(articleId), fileName);
-
-				if (!Files.exists(imagePath)) {
-					continue;
-				}
-
-				FileSystemResource fileResource = new FileSystemResource(imagePath.toFile());
-
-				HttpHeaders fileHeaders = new HttpHeaders();
-				// MIME 타입 세팅
-				String mimeType = Files.probeContentType(imagePath);
-				MediaType mediaType = (mimeType != null) ? MediaType.parseMediaType(mimeType)
-						: MediaType.APPLICATION_OCTET_STREAM;
-				fileHeaders.setContentType(mediaType);
-				fileHeaders.setContentDisposition(
-						ContentDisposition.attachment().filename(fileName, StandardCharsets.UTF_8).build());
-
-				HttpEntity<Resource> filePart = new HttpEntity<>(fileResource, fileHeaders);
-
-				// 같은 이름으로 여러 파일을 보내고 싶으면 모두 "files"로 add
-				body.add("files", filePart);
-				// 또는 각자 다른 이름을 원하면 body.add("file-" + fileName, filePart);
-			}
-
-			return ResponseEntity.ok().contentType(MediaType.MULTIPART_FORM_DATA).body(body);
+			return ResponseEntity.ok(response);
 
 		} catch (Exception e) {
-			log.error("게시글 멀티파트 응답 오류: {}", e.getMessage(), e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+			log.error("게시글 조회 오류: {}", e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("message", "게시글 조회 중 오류가 발생했습니다"));
 		}
 	}
+
 
 	@PostMapping("/addReply")
 	public ResponseEntity<Map<String, ?>> addReply(@RequestBody Reply reply, Authentication auth) {
 		Map<?, ?> details = (Map<?, ?>) auth.getDetails();
 		int replierId = (int) details.get("userId");
+		String replierName = (String) details.get("realName");
 		reply.setReplierId(replierId);
+		reply.setReplierName(replierName);
 
 		int result = aService.addReply(reply);
 
 		if (result != 1) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "댓글을 등록할 수 없습니다."));
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(Map.of("message", "댓글을 등록할 수 없습니다."));
 		}
 
 		return ResponseEntity.ok(Map.of("message", "댓글 등록 완료"));
 	}
-	
+
 	@DeleteMapping("/deleteReply")
-	public ResponseEntity<Map<String, ?>> deleteReply(@RequestBody Map<String, ?> req, Authentication auth) {
+	public ResponseEntity<Map<String, ?>> deleteReply(@RequestBody Map<String, ?> req,
+			Authentication auth) {
 		int replyId = (int) req.get("replyId");
 		int result = aService.deleteReply(replyId, auth);
-		
-		if(result != 1) {
+
+		if (result != 1) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "댓글 삭제 실패"));
 		}
-		
+
 		return ResponseEntity.ok(Map.of("message", "댓글 삭제 성공"));
 	}
-	
+
 	@PutMapping("/updateReply")
-	public ResponseEntity<Map<String, String>> updateReply(@RequestBody Reply reply, Authentication auth) {
+	public ResponseEntity<Map<String, String>> updateReply(@RequestBody Reply reply,
+			Authentication auth) {
 		int replyId = reply.getReplyId();
 		String content = reply.getContent();
 		int replierId = (int) ((Map<?, ?>) auth.getDetails()).get("userId");
 		reply.setReplierId(replierId);
-		
+
 		int result = aService.updateReply(reply);
-		
-		if(result != 1) {
+
+		if (result != 1) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "댓글 수정 실패"));
 		}
-		
+
 		return ResponseEntity.ok(Map.of("message", "댓글 수정 성공"));
 	}
 

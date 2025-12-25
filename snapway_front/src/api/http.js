@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 // 1. 일반 API 호출용 Axios 인스턴스 생성
 const http = axios.create({
@@ -26,6 +26,14 @@ http.interceptors.request.use(
     config.headers = config.headers || {};
 
     // -----------------------------------------------------------
+    // [NEW] FormData 처리 - Content-Type 자동 설정
+    // -----------------------------------------------------------
+    if (config.data instanceof FormData) {
+      // FormData일 때는 브라우저가 자동으로 multipart/form-data 설정
+      delete config.headers["Content-Type"];
+    }
+
+    // -----------------------------------------------------------
     // [Logic A] JWT 토큰 처리 (Authorization)
     // -----------------------------------------------------------
     const token = localStorage.getItem("accessToken");
@@ -38,7 +46,9 @@ http.interceptors.request.use(
     // -----------------------------------------------------------
     // GET 요청 등을 제외한 상태 변경 요청(POST, PUT, DELETE 등)에만 적용
     const method = (config.method || "get").toUpperCase();
-    const isStateChangeMethod = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
+    const isStateChangeMethod = ["POST", "PUT", "DELETE", "PATCH"].includes(
+      method
+    );
 
     if (isStateChangeMethod) {
       const xsrfToken = getCookie("XSRF-TOKEN");
