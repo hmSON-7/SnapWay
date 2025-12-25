@@ -29,6 +29,10 @@
 		SELECT * FROM member WHERE email = #{email}
 	</select>
     
+    <select id="findByEmail" parameterType="string" resultMap="memberMap">
+        SELECT * FROM member WHERE email = #{email}
+    </select>
+    
     <select id="selectMemberById" parameterType="int" resultMap="memberMap">
         SELECT * FROM member WHERE id = #{id}
     </select>
@@ -53,5 +57,11 @@
     <delete id="deleteMember" parameterType="string">
         DELETE FROM member WHERE email = #{email}
     </delete>
+    
+    <update id="updatePasswordByEmail">
+        UPDATE member
+        SET password = #{password}
+        WHERE email = #{email}
+    </update>
 
 </mapper>
